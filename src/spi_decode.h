@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-enum spi_decode_states {
+enum spi_decode_status {
     SPI_DECODE_IDLE,
     SPI_DECODE_ACTIVE,
     SPI_DECODE_DATA_VALID
@@ -23,36 +23,7 @@ enum spi_flags {
     SPI_FLAG_CS_POLARITY = 0x8
 };
 
-struct spi_decode_state {
-    uint8_t mosi;
-    uint8_t miso;
-    uint8_t sclk;
-    uint8_t bits_sampled;
-};
 
-/* Struct: spi_decode_ctx
- *
- * Context structure for the SPI decoder; this allows multiple
- * SPI decoders to be independently running.  They must be
- * initialized using the helper functions.
- *
- * Fields:
- *      mask_mosi - One-hot sample mask for MOSI line
- *      mask_miso - One-hot sample mask for MOSI line
- *      mask_sclk - One-hot sample mask for SCLK line
- *      mask_cs   - One-hot sample mask for CS line
- *      flags - SPI decoder configuration flags
- *      state - SPI decode state machine vars
- */
-struct spi_decode_ctx {
-    uint64_t mask_mosi;
-    uint64_t mask_miso;
-    uint64_t mask_sclk;
-    uint64_t mask_cs;
-    uint8_t flags;
-    uint8_t symbol_length;
-    struct spi_decode_state *state;
-};
 
 typedef struct spi_decode_ctx spi_decode_ctx_t;
 
@@ -61,14 +32,23 @@ struct spi_decoded {
     uint8_t *miso;
     uint32_t *sample_idx;
     uint32_t len;
-
     uint32_t sample_rate;
 };
 
+/* The SPI decoder context is meant to be opaque to the user; that way
+ * the implementation can be swapped out without breaking anything
+ * that's using it.
+ */
+int spi_decode_ctx_init(spi_decode_ctx_t **ctx);
+void spi_decode_ctx_cleanup(spi_decode_ctx_t *ctx);
+int spi_decode_ctx_map_mosi(spi_decode_ctx_t *ctx, uint8_t mosi_bit);
+int spi_decode_ctx_map_miso(spi_decode_ctx_t *ctx, uint8_t miso_bit);
+int spi_decode_ctx_map_sclk(spi_decode_ctx_t *ctx, uint8_t sclk_bit);
+int spi_decode_ctx_map_cs(spi_decode_ctx_t *ctx, uint8_t cs_bit);
+int spi_decode_ctx_set_symbol_length(spi_decode_ctx_t *ctx, uint8_t symbol_length);
+int spi_decode_ctx_set_flags(spi_decode_ctx_t *ctx, uint8_t flag_mask);
+int spi_decode_ctx_clr_flags(spi_decode_ctx_t *ctx, uint8_t flag_mask);
 
-int spi_decode_init_ctx(spi_decode_ctx_t **ctx);
-void spi_decode_cleanup_ctx(spi_decode_ctx_t *ctx);
-
-int spi_decode(spi_decode_ctx_t *ctx, uint8_t sample, uint8_t *out, uint8_t *in);
+int spi_decode_stream(struct spi_decode_ctx *ctx, uint32_t raw_sample, uint8_t *mosi, uint8_t *miso);
 
 #endif

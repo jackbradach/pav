@@ -1,7 +1,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
-
+#include <stdlib.h>
+#include <errno.h>
 #include "spi_decode.h"
 
 #define SPI_MOSI 0x1
@@ -9,8 +10,39 @@
 #define SPI_SCLK 0x4
 #define SPI_CS 0x8
 
-#define SPI_SYMBOL_LENGTH 8
-#define SAMPLE_POLARITY 1
+#define DEFAULT_SYMBOL_LENGTH 8
+
+struct spi_decode_state {
+    uint8_t mosi;
+    uint8_t miso;
+    uint8_t sclk;
+    uint8_t bits_sampled;
+};
+
+/* Struct: spi_decode_ctx
+ *
+ * Context structure for the SPI decoder; this allows multiple
+ * SPI decoders to be independently running.  They must be
+ * initialized using the helper functions.
+ *
+ * Fields:
+ *      mask_mosi - One-hot sample mask for MOSI line
+ *      mask_miso - One-hot sample mask for MOSI line
+ *      mask_sclk - One-hot sample mask for SCLK line
+ *      mask_cs   - One-hot sample mask for CS line
+ *      flags - SPI decoder configuration flags
+ *      state - SPI decode state machine vars
+ */
+struct spi_decode_ctx {
+    uint64_t mask_mosi;
+    uint64_t mask_miso;
+    uint64_t mask_sclk;
+    uint64_t mask_cs;
+    uint8_t flags;
+    uint8_t symbol_length;
+    struct spi_decode_state *state;
+};
+
 
 /* Function: is_spi_sample_point
  *
@@ -88,7 +120,7 @@ static inline void do_spi_sample(struct spi_decode_ctx *ctx, uint8_t sample)
 
 /* Function: unswizzle_sample
  *
- * Maps signals from a raw analyzer output (up to 64-bits wide) to a
+ * Maps signals from a raw analyzer output (up to 32-bits wide) to a
  * 4-bit sample.  This is converting the actual channels to logical ones
  * for ease of processing.
  *
@@ -99,7 +131,7 @@ static inline void do_spi_sample(struct spi_decode_ctx *ctx, uint8_t sample)
  * Returns:
  *      4-bit representation of SPI sample
  */
-static inline uint8_t unswizzle_sample(struct spi_decode_ctx *ctx, uint64_t sample)
+static inline uint8_t unswizzle_sample(struct spi_decode_ctx *ctx, uint32_t sample)
 {
     uint8_t unswizzled = 0;
 
@@ -118,7 +150,7 @@ static inline uint8_t unswizzle_sample(struct spi_decode_ctx *ctx, uint64_t samp
     return unswizzled;
 }
 
-/* Function: spi_decode
+/* Function: stream_decoder
  *
  * Stateful decoding of a SPI stream.
  *
@@ -126,7 +158,7 @@ static inline uint8_t unswizzle_sample(struct spi_decode_ctx *ctx, uint64_t samp
  *      ctx - handle to an initialized SPI Decoder context
  *      sample - a 4-bit sample, unswizzled using spi_unswizzle.
  */
-int spi_decode(struct spi_decode_ctx *ctx, uint8_t sample, uint8_t *out, uint8_t *in)
+static int stream_decoder(struct spi_decode_ctx *ctx, uint8_t sample, uint8_t *out, uint8_t *in)
 {
     struct spi_decode_state *state = ctx->state;
     uint8_t new_sclk;
@@ -169,7 +201,33 @@ int spi_decode(struct spi_decode_ctx *ctx, uint8_t sample, uint8_t *out, uint8_t
     return SPI_DECODE_ACTIVE;
 }
 
-
+/* Function: spi_decode_stream
+ *
+ * Public interface to the SPI stream decoder; it takes a raw sample,
+ * unswizzles the SPI signals that the context is registered to handle,
+ * and then passes it to the stream decoder.  Caller is responsible for
+ * watching the return value and collecting any bytes that are decoded.
+ *
+ * If the mosi or miso parameters are NULL, the decoder assumes you don't
+ * care about them and will skip outputting them.  Having both NULL is
+ * valid, just not particularly useful.
+ *
+ * Parameters:
+ *      ctx - Handle to a SPI decode context.
+ *      raw_sample - 32-bit raw sample from logic analyzer
+ *      mosi - pointer to a byte where decoded MOSI will be stored.
+ *      miso - pointer to a byte where decoded MISO will be stored.
+ *
+ * Returns:
+ *      SPI_DECODE_DATA_VALID on valid data,
+ *      SPI_DECODE_IDLE / SPI_DECODE_ACTIVE as appropriate otherwise.
+ *
+ */
+int spi_decode_stream(struct spi_decode_ctx *ctx, uint32_t raw_sample, uint8_t *mosi, uint8_t *miso)
+{
+    uint8_t spi_sample = unswizzle_sample(ctx, raw_sample);
+    return stream_decoder(ctx, spi_sample, mosi, miso);
+}
 
 int spi_parse(uint8_t *sbuf, uint32_t sbuf_len, struct spi_decoded *out)
 {
@@ -178,4 +236,56 @@ int spi_parse(uint8_t *sbuf, uint32_t sbuf_len, struct spi_decoded *out)
     }
 
     return 0;
+}
+
+/* Function: spi_decode_ctx_init
+ *
+ * Frees the resources associated with a SPI Decode Context structure.
+ * This needs to be called to avoid memory leaks when a decoder is no
+ * longer needed.
+ *
+ * Parameters:
+ *      ctx - handle SPI decode context structure to destroy; this handle
+ *            will be immediately invalid after return.
+ */
+int spi_decode_ctx_init(struct spi_decode_ctx **new_ctx)
+{
+    struct spi_decode_ctx *ctx;
+    struct spi_decode_state *state;
+    if (NULL == new_ctx)
+        return -EINVAL;
+
+    /* Calloc takes care of most needed initialization, but we
+     * set the symbol length to a sane default.
+     */
+    ctx = calloc(1, sizeof(struct spi_decode_ctx));
+    ctx->symbol_length = DEFAULT_SYMBOL_LENGTH;
+    state = calloc(1, sizeof(struct spi_decode_state));
+
+    ctx->state = state;
+    *new_ctx = ctx;
+    return 0;
+}
+
+/* Function: spi_decode_cleanup_ctx
+ *
+ * Frees the resources associated with a SPI Decode Context structure.
+ * This needs to be called to avoid memory leaks when a decoder is no
+ * longer needed.
+ *
+ * Parameters:
+ *      ctx - handle SPI decode context structure to destroy; this handle
+ *            will be immediately invalid after return.
+ */
+void spi_decode_ctx_cleanup(struct spi_decode_ctx *ctx)
+{
+    if (NULL == ctx)
+        return;
+
+    if (NULL != ctx->state) {
+        free(ctx->state);
+        ctx->state = 0;
+    }
+
+    free(ctx);
 }
