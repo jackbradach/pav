@@ -11,6 +11,9 @@
 #define SPI_CS 0x8
 
 #define DEFAULT_SYMBOL_LENGTH 8
+#define MAX_SAMPLE_WIDTH 32
+
+#define SPI_FLAG_MASK (SPI_FLAG_CPOL | SPI_FLAG_CPHA | SPI_FLAG_ENDIANESS | SPI_FLAG_CS_POLARITY)
 
 struct spi_decode_state {
     uint8_t mosi;
@@ -288,4 +291,67 @@ void spi_decode_ctx_cleanup(struct spi_decode_ctx *ctx)
     }
 
     free(ctx);
+}
+
+int spi_decode_ctx_map_mosi(spi_decode_ctx_t *ctx, uint8_t mosi_bit)
+{
+    if ((NULL == ctx) || (mosi_bit >= MAX_SAMPLE_WIDTH))
+        return -EINVAL;
+
+    ctx->mask_mosi = (1 << mosi_bit);
+    return 0;
+}
+
+int spi_decode_ctx_map_miso(spi_decode_ctx_t *ctx, uint8_t miso_bit)
+{
+    if ((NULL == ctx) || (miso_bit >= MAX_SAMPLE_WIDTH))
+        return -EINVAL;
+
+    ctx->mask_miso = (1 << miso_bit);
+    return 0;
+}
+
+int spi_decode_ctx_map_sclk(spi_decode_ctx_t *ctx, uint8_t sclk_bit)
+{
+    if ((NULL == ctx) || (sclk_bit >= MAX_SAMPLE_WIDTH))
+        return -EINVAL;
+
+    ctx->mask_sclk = (1 << sclk_bit);
+    return 0;
+}
+
+int spi_decode_ctx_map_cs(spi_decode_ctx_t *ctx, uint8_t cs_bit)
+{
+    if ((NULL == ctx) || (cs_bit >= MAX_SAMPLE_WIDTH))
+        return -EINVAL;
+
+    ctx->mask_cs = (1 << cs_bit);
+    return 0;
+}
+
+int spi_decode_ctx_set_symbol_length(spi_decode_ctx_t *ctx, uint8_t symbol_length)
+{
+    if (NULL == ctx)
+        return -EINVAL;
+
+    ctx->symbol_length = symbol_length;
+    return 0;
+}
+
+int spi_decode_ctx_set_flags(spi_decode_ctx_t *ctx, uint8_t set_mask)
+{
+    if ((NULL == ctx) || (set_mask & ~SPI_FLAG_MASK))
+        return -EINVAL;
+
+    ctx->flags |= set_mask;
+    return 0;
+}
+
+int spi_decode_ctx_clr_flags(spi_decode_ctx_t *ctx, uint8_t clr_mask)
+{
+    if ((NULL == ctx) || (clr_mask & ~SPI_FLAG_MASK))
+        return -EINVAL;
+
+    ctx->flags &= ~clr_mask;
+    return 0;
 }
