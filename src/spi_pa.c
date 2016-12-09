@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include "spi_decode.h"
+#include "spi_pa.h"
 
 #define SPI_MOSI 0x1
 #define SPI_MISO 0x2
@@ -16,14 +16,14 @@
 
 #define SPI_FLAG_MASK (SPI_FLAG_CPOL | SPI_FLAG_CPHA | SPI_FLAG_ENDIANESS | SPI_FLAG_CS_POLARITY)
 
-struct spi_decode_state {
+struct spi_pa_state {
     uint8_t mosi;
     uint8_t miso;
     uint8_t sclk;
     uint8_t bits_sampled;
 };
 
-/* Struct: spi_decode_ctx
+/* Struct: spi_pa_ctx
  *
  * Context structure for the SPI decoder; this allows multiple
  * SPI decoders to be independently running.  They must be
@@ -37,14 +37,14 @@ struct spi_decode_state {
  *      flags - SPI decoder configuration flags
  *      state - SPI decode state machine vars
  */
-struct spi_decode_ctx {
+struct spi_pa_ctx {
     uint64_t mask_mosi;
     uint64_t mask_miso;
     uint64_t mask_sclk;
     uint64_t mask_cs;
     uint8_t flags;
     uint8_t symbol_length;
-    struct spi_decode_state *state;
+    struct spi_pa_state *state;
 };
 
 
@@ -101,9 +101,9 @@ static inline bool is_spi_sample_point(uint8_t spi_flags, uint8_t sclk)
  *      state - SPI decode state structure
  *      sample - SPI sample data
  */
-static inline void do_spi_sample(struct spi_decode_ctx *ctx, uint8_t sample)
+static inline void do_spi_sample(struct spi_pa_ctx *ctx, uint8_t sample)
 {
-    struct spi_decode_state *state = ctx->state;
+    struct spi_pa_state *state = ctx->state;
     if (ctx->flags & SPI_FLAG_ENDIANESS) {
         /* MSB First, bits will be left-shifted in. */
         state->mosi <<= 1;
@@ -135,7 +135,7 @@ static inline void do_spi_sample(struct spi_decode_ctx *ctx, uint8_t sample)
  * Returns:
  *      4-bit representation of SPI sample
  */
-static inline uint8_t unswizzle_sample(struct spi_decode_ctx *ctx, uint32_t sample)
+static inline uint8_t unswizzle_sample(struct spi_pa_ctx *ctx, uint32_t sample)
 {
     uint8_t unswizzled = 0;
 
@@ -162,9 +162,9 @@ static inline uint8_t unswizzle_sample(struct spi_decode_ctx *ctx, uint32_t samp
  *      ctx - handle to an initialized SPI Decoder context
  *      sample - a 4-bit sample, unswizzled using spi_unswizzle.
  */
-static int stream_decoder(struct spi_decode_ctx *ctx, uint8_t sample, uint8_t *out, uint8_t *in)
+static int stream_decoder(struct spi_pa_ctx *ctx, uint8_t sample, uint8_t *out, uint8_t *in)
 {
-    struct spi_decode_state *state = ctx->state;
+    struct spi_pa_state *state = ctx->state;
     uint8_t new_sclk;
 
     /* Hold in IDLE if CS is inactive */
@@ -172,7 +172,7 @@ static int stream_decoder(struct spi_decode_ctx *ctx, uint8_t sample, uint8_t *o
         state->mosi = 0;
         state->miso = 0;
         state->sclk = 0;
-        return SPI_DECODE_IDLE;
+        return SPI_PA_IDLE;
     }
 
     /* Detect a clock state change */
@@ -187,7 +187,7 @@ static int stream_decoder(struct spi_decode_ctx *ctx, uint8_t sample, uint8_t *o
 
     /* Output a byte every SPI_SYMBOL_LENGTH ticks. This is a
      * "use it or lose it" situation where the caller needs to
-     * be watching for SPI_DECODE_DATA_VALID as a return code.
+     * be watching for SPI_PA_DATA_VALID as a return code.
      */
     if (state->bits_sampled == ctx->symbol_length) {
         if (NULL != out)
@@ -199,13 +199,13 @@ static int stream_decoder(struct spi_decode_ctx *ctx, uint8_t sample, uint8_t *o
         state->mosi = 0;
         state->miso = 0;
         state->bits_sampled = 0;
-        return SPI_DECODE_DATA_VALID;
+        return SPI_PA_DATA_VALID;
     }
 
-    return SPI_DECODE_ACTIVE;
+    return SPI_PA_ACTIVE;
 }
 
-/* Function: spi_decode_stream
+/* Function: spi_pa_stream
  *
  * Public interface to the SPI stream decoder; it takes a raw sample,
  * unswizzles the SPI signals that the context is registered to handle,
@@ -223,11 +223,11 @@ static int stream_decoder(struct spi_decode_ctx *ctx, uint8_t sample, uint8_t *o
  *      miso - pointer to a byte where decoded MISO will be stored.
  *
  * Returns:
- *      SPI_DECODE_DATA_VALID on valid data,
- *      SPI_DECODE_IDLE / SPI_DECODE_ACTIVE as appropriate otherwise.
+ *      SPI_PA_DATA_VALID on valid data,
+ *      SPI_PA_IDLE / SPI_PA_ACTIVE as appropriate otherwise.
  *
  */
-int spi_decode_stream(struct spi_decode_ctx *ctx, uint32_t raw_sample, uint8_t *mosi, uint8_t *miso)
+int spi_pa_stream(struct spi_pa_ctx *ctx, uint32_t raw_sample, uint8_t *mosi, uint8_t *miso)
 {
     uint8_t spi_sample = unswizzle_sample(ctx, raw_sample);
     return stream_decoder(ctx, spi_sample, mosi, miso);
@@ -238,7 +238,7 @@ int spi_pkt_buf_alloc(struct spi_pkt_buf **pbuf)
 
 }
 
-int spi_decode_buffer(struct spi_decode_ctx *ctx, uint32_t *sbuf, uint32_t sbuf_len, struct spi_pkt_buf *out)
+int spi_pa_buffer(struct spi_pa_ctx *ctx, uint32_t *sbuf, uint32_t sbuf_len, struct spi_pkt_buf *out)
 {
     if ((NULL == sbuf) || (NULL == out))
         return -EINVAL;
@@ -248,8 +248,8 @@ int spi_decode_buffer(struct spi_decode_ctx *ctx, uint32_t *sbuf, uint32_t sbuf_
         uint8_t dout, din;
         int rc;
 
-        rc = spi_decode_stream(ctx, sbuf[i], &dout, &din);
-        if (SPI_DECODE_DATA_VALID == rc) {
+        rc = spi_pa_stream(ctx, sbuf[i], &dout, &din);
+        if (SPI_PA_DATA_VALID == rc) {
 
         }
     }
@@ -257,7 +257,7 @@ int spi_decode_buffer(struct spi_decode_ctx *ctx, uint32_t *sbuf, uint32_t sbuf_
     return 0;
 }
 
-/* Function: spi_decode_ctx_init
+/* Function: spi_pa_ctx_init
  *
  * Frees the resources associated with a SPI Decode Context structure.
  * This needs to be called to avoid memory leaks when a decoder is no
@@ -267,26 +267,26 @@ int spi_decode_buffer(struct spi_decode_ctx *ctx, uint32_t *sbuf, uint32_t sbuf_
  *      ctx - handle SPI decode context structure to destroy; this handle
  *            will be immediately invalid after return.
  */
-int spi_decode_ctx_init(struct spi_decode_ctx **new_ctx)
+int spi_pa_ctx_init(struct spi_pa_ctx **new_ctx)
 {
-    struct spi_decode_ctx *ctx;
-    struct spi_decode_state *state;
+    struct spi_pa_ctx *ctx;
+    struct spi_pa_state *state;
     if (NULL == new_ctx)
         return -EINVAL;
 
     /* Calloc takes care of most needed initialization, but we
      * set the symbol length to a sane default.
      */
-    ctx = calloc(1, sizeof(struct spi_decode_ctx));
+    ctx = calloc(1, sizeof(struct spi_pa_ctx));
     ctx->symbol_length = DEFAULT_SYMBOL_LENGTH;
-    state = calloc(1, sizeof(struct spi_decode_state));
+    state = calloc(1, sizeof(struct spi_pa_state));
 
     ctx->state = state;
     *new_ctx = ctx;
     return 0;
 }
 
-/* Function: spi_decode_cleanup_ctx
+/* Function: spi_pa_cleanup_ctx
  *
  * Frees the resources associated with a SPI Decode Context structure.
  * This needs to be called to avoid memory leaks when a decoder is no
@@ -296,7 +296,7 @@ int spi_decode_ctx_init(struct spi_decode_ctx **new_ctx)
  *      ctx - handle SPI decode context structure to destroy; this handle
  *            will be immediately invalid after return.
  */
-void spi_decode_ctx_cleanup(struct spi_decode_ctx *ctx)
+void spi_pa_ctx_cleanup(struct spi_pa_ctx *ctx)
 {
     if (NULL == ctx)
         return;
@@ -309,7 +309,7 @@ void spi_decode_ctx_cleanup(struct spi_decode_ctx *ctx)
     free(ctx);
 }
 
-int spi_decode_ctx_map_mosi(spi_decode_ctx_t *ctx, uint8_t mosi_bit)
+int spi_pa_ctx_map_mosi(spi_pa_ctx_t *ctx, uint8_t mosi_bit)
 {
     if ((NULL == ctx) || (mosi_bit >= MAX_SAMPLE_WIDTH))
         return -EINVAL;
@@ -318,7 +318,7 @@ int spi_decode_ctx_map_mosi(spi_decode_ctx_t *ctx, uint8_t mosi_bit)
     return 0;
 }
 
-int spi_decode_ctx_map_miso(spi_decode_ctx_t *ctx, uint8_t miso_bit)
+int spi_pa_ctx_map_miso(spi_pa_ctx_t *ctx, uint8_t miso_bit)
 {
     if ((NULL == ctx) || (miso_bit >= MAX_SAMPLE_WIDTH))
         return -EINVAL;
@@ -327,7 +327,7 @@ int spi_decode_ctx_map_miso(spi_decode_ctx_t *ctx, uint8_t miso_bit)
     return 0;
 }
 
-int spi_decode_ctx_map_sclk(spi_decode_ctx_t *ctx, uint8_t sclk_bit)
+int spi_pa_ctx_map_sclk(spi_pa_ctx_t *ctx, uint8_t sclk_bit)
 {
     if ((NULL == ctx) || (sclk_bit >= MAX_SAMPLE_WIDTH))
         return -EINVAL;
@@ -336,7 +336,7 @@ int spi_decode_ctx_map_sclk(spi_decode_ctx_t *ctx, uint8_t sclk_bit)
     return 0;
 }
 
-int spi_decode_ctx_map_cs(spi_decode_ctx_t *ctx, uint8_t cs_bit)
+int spi_pa_ctx_map_cs(spi_pa_ctx_t *ctx, uint8_t cs_bit)
 {
     if ((NULL == ctx) || (cs_bit >= MAX_SAMPLE_WIDTH))
         return -EINVAL;
@@ -345,7 +345,7 @@ int spi_decode_ctx_map_cs(spi_decode_ctx_t *ctx, uint8_t cs_bit)
     return 0;
 }
 
-int spi_decode_ctx_set_symbol_length(spi_decode_ctx_t *ctx, uint8_t symbol_length)
+int spi_pa_ctx_set_symbol_length(spi_pa_ctx_t *ctx, uint8_t symbol_length)
 {
     if (NULL == ctx)
         return -EINVAL;
@@ -354,7 +354,7 @@ int spi_decode_ctx_set_symbol_length(spi_decode_ctx_t *ctx, uint8_t symbol_lengt
     return 0;
 }
 
-int spi_decode_ctx_set_flags(spi_decode_ctx_t *ctx, uint8_t set_mask)
+int spi_pa_ctx_set_flags(spi_pa_ctx_t *ctx, uint8_t set_mask)
 {
     if ((NULL == ctx) || (set_mask & ~SPI_FLAG_MASK))
         return -EINVAL;
@@ -363,7 +363,7 @@ int spi_decode_ctx_set_flags(spi_decode_ctx_t *ctx, uint8_t set_mask)
     return 0;
 }
 
-int spi_decode_ctx_clr_flags(spi_decode_ctx_t *ctx, uint8_t clr_mask)
+int spi_pa_ctx_clr_flags(spi_pa_ctx_t *ctx, uint8_t clr_mask)
 {
     if ((NULL == ctx) || (clr_mask & ~SPI_FLAG_MASK))
         return -EINVAL;
