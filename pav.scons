@@ -1,0 +1,14 @@
+# SCons build script for a Protocol Analyzer Validator (pav)
+# TODO: come up with a better name.
+import os.path
+
+version = "0.0.1"
+
+Import('env')
+
+objs = []
+src = env.Glob("*.c")
+pav_bin = env.Program(target='bin/pav',
+                      source=src)
+
+env.Alias('bin', [pav_bin])

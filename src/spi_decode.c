@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <errno.h>
+
 #include "spi_decode.h"
 
 #define SPI_MOSI 0x1
@@ -234,26 +235,23 @@ int spi_decode_stream(struct spi_decode_ctx *ctx, uint32_t raw_sample, uint8_t *
 
 int spi_pkt_buf_alloc(struct spi_pkt_buf **pbuf)
 {
-    
+
 }
 
-int spi_decode_buffer(uint32_t *sbuf, uint32_t sbuf_len, struct spi_decoded *out)
+int spi_decode_buffer(struct spi_decode_ctx *ctx, uint32_t *sbuf, uint32_t sbuf_len, struct spi_pkt_buf *out)
 {
     if ((NULL == sbuf) || (NULL == out))
-        return -EINVAL
-
-
+        return -EINVAL;
 
     for (unsigned long i = 0; i < (sbuf_len / sizeof(uint32_t)); i++)
     {
         uint8_t dout, din;
         int rc;
 
-        rc = spi_decode_stream(spi_ctx, sbuf[i], &dout, &din);
+        rc = spi_decode_stream(ctx, sbuf[i], &dout, &din);
         if (SPI_DECODE_DATA_VALID == rc) {
-            decode_count++;
+
         }
-        sample_count++;
     }
 
     return 0;
