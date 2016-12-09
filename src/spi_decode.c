@@ -232,10 +232,28 @@ int spi_decode_stream(struct spi_decode_ctx *ctx, uint32_t raw_sample, uint8_t *
     return stream_decoder(ctx, spi_sample, mosi, miso);
 }
 
-int spi_parse(uint8_t *sbuf, uint32_t sbuf_len, struct spi_decoded *out)
+int spi_pkt_buf_alloc(struct spi_pkt_buf **pbuf)
 {
-    for (uint32_t i = 0; i < sbuf_len; i++) {
+    
+}
 
+int spi_decode_buffer(uint32_t *sbuf, uint32_t sbuf_len, struct spi_decoded *out)
+{
+    if ((NULL == sbuf) || (NULL == out))
+        return -EINVAL
+
+
+
+    for (unsigned long i = 0; i < (sbuf_len / sizeof(uint32_t)); i++)
+    {
+        uint8_t dout, din;
+        int rc;
+
+        rc = spi_decode_stream(spi_ctx, sbuf[i], &dout, &din);
+        if (SPI_DECODE_DATA_VALID == rc) {
+            decode_count++;
+        }
+        sample_count++;
     }
 
     return 0;

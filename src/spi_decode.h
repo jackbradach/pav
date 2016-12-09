@@ -27,7 +27,7 @@ enum spi_flags {
 
 typedef struct spi_decode_ctx spi_decode_ctx_t;
 
-struct spi_decoded {
+struct spi_pkt_buf {
     uint8_t *mosi;
     uint8_t *miso;
     uint32_t *sample_idx;
