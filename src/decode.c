@@ -5,7 +5,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "spi_decode.h"
+#include "spi_pa.h"
 
 void *mmap_file(const char *filename, size_t *length)
 {
@@ -25,7 +25,7 @@ void *mmap_file(const char *filename, size_t *length)
 
 int main(void)
 {
-    spi_decode_ctx_t *spi_ctx;
+    spi_pa_ctx_t *spi_ctx;
     clock_t ts_start, ts_end;
     double elapsed;
 
@@ -36,12 +36,12 @@ int main(void)
 
 
     /* Init SPI decoder and map physical channels to logical ones */
-    spi_decode_ctx_init(&spi_ctx);
-    spi_decode_ctx_map_mosi(spi_ctx, 0);
-    spi_decode_ctx_map_miso(spi_ctx, 1);
-    spi_decode_ctx_map_sclk(spi_ctx, 2);
-    spi_decode_ctx_map_cs(spi_ctx, 3);
-    spi_decode_ctx_set_flags(spi_ctx, SPI_FLAG_ENDIANESS);
+    spi_pa_ctx_init(&spi_ctx);
+    spi_pa_ctx_map_mosi(spi_ctx, 0);
+    spi_pa_ctx_map_miso(spi_ctx, 1);
+    spi_pa_ctx_map_sclk(spi_ctx, 2);
+    spi_pa_ctx_map_cs(spi_ctx, 3);
+    spi_pa_ctx_set_flags(spi_ctx, SPI_FLAG_ENDIANESS);
 
     /* Map sample file into memory */
     sbuf = mmap_file("../16ch_quadspi_100mhz.bin", &sbuf_len);
@@ -53,15 +53,15 @@ int main(void)
             uint8_t dout, din;
             int rc;
 
-            rc = spi_decode_stream(spi_ctx, sbuf[i], &dout, &din);
-            if (SPI_DECODE_DATA_VALID == rc) {
+            rc = spi_pa_stream(spi_ctx, sbuf[i], &dout, &din);
+            if (SPI_PA_DATA_VALID == rc) {
                 decode_count++;
             }
             sample_count++;
         }
 //    }
     ts_end = clock();
-    spi_decode_ctx_cleanup(spi_ctx);
+    spi_pa_ctx_cleanup(spi_ctx);
     elapsed = (double)(ts_end - ts_start) / CLOCKS_PER_SEC;
     printf("Time elapsed: %f seconds\n", elapsed);
     printf("Samples processed: %lu (%lu samples/s)\n", sample_count, (unsigned long) (sample_count/elapsed));
