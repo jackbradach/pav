@@ -1,0 +1,37 @@
+
+Using fgetc loop:
+Time elapsed: 0.133932 seconds
+Samples processed: 3342337 (24955477 samples/s)
+Decode count: 19282 (143968 bytes/s)
+
+Using mmap for sample file:
+Time elapsed: 0.026092 seconds
+Samples processed: 3342336 (128098114 samples/s)
+Decode count: 19282 (739000 bytes/s)
+
+Looping "at least a billion samples"
+Time elapsed: 3.962915 seconds
+Samples processed: 1002700800 (253021021 samples/s)
+Decode count: 5784862 (1459749 bytes/s)
+
+SPI[3:0] - EN:CK:SO:SI, MSB, !CPOL, !CPHA, !EN
+SPI[7:4] - SI:SO:EN:CK, LSB, CPOL, CPHA, EN
+
+
+$ gcc -g -O0 --coverage spi_decode.c -Wall decode.c -o decode
+$ ./decode
+$ lcov --capture --directory . --output-file coverage.info
+$ genhtml -o res coverage.info
+
+uint64_t - sample total
+uint32_t - channel count
+double - sample period (seconds?)
+float[] - 1st channels
+float[] - second channel, etc
+
+Analog max swing: -10/10V, use to convert samples without cal.
+
+Convert from raw sample value only in the last step.  Get raw sample
+for interesting voltages to use as a trigger.
+
+Record 3.3v serial data with analog, use TTL voltages to turn into digital.
