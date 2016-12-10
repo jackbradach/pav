@@ -30,9 +30,8 @@ typedef struct spi_pa_ctx spi_pa_ctx_t;
 struct spi_pkt_buf {
     uint8_t *mosi;
     uint8_t *miso;
-    uint32_t *sample_idx;
+    uint32_t *idx;
     uint32_t len;
-    uint32_t sample_rate;
 };
 
 /* The SPI decoder context is meant to be opaque to the user; that way

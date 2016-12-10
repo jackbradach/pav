@@ -1,11 +1,14 @@
+#include <assert.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <time.h>
 #include <unistd.h>
 
 #include "spi_pa.h"
+#include "adc.h"
 
 void *mmap_file(const char *filename, size_t *length)
 {
@@ -13,7 +16,10 @@ void *mmap_file(const char *filename, size_t *length)
     struct stat st;
     void *addr;
 
+    // TODO - 2016/12/08 - jbradach - add more robust error handling here.
     fd = open(filename, O_RDONLY);
+    assert(fd > 0);
+
     fstat(fd, &st);
 
     addr = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
@@ -23,7 +29,7 @@ void *mmap_file(const char *filename, size_t *length)
     return addr;
 }
 
-int main(void)
+void test_spi_pa(void)
 {
     spi_pa_ctx_t *spi_ctx;
     clock_t ts_start, ts_end;
@@ -34,7 +40,6 @@ int main(void)
     uint64_t decode_count = 0;
     size_t sbuf_len;
 
-
     /* Init SPI decoder and map physical channels to logical ones */
     spi_pa_ctx_init(&spi_ctx);
     spi_pa_ctx_map_mosi(spi_ctx, 0);
@@ -44,30 +49,52 @@ int main(void)
     spi_pa_ctx_set_flags(spi_ctx, SPI_FLAG_ENDIANESS);
 
     /* Map sample file into memory */
-    sbuf = mmap_file("../16ch_quadspi_100mhz.bin", &sbuf_len);
+    sbuf = mmap_file("16ch_quadspi_100mhz.bin", &sbuf_len);
 
     ts_start = clock();
-//    while (sample_count < 1000000000ULL) {
-        for (unsigned long i = 0; i < (sbuf_len / sizeof(uint32_t)); i++)
-        {
-            uint8_t dout, din;
-            int rc;
+    for (unsigned long i = 0; i < (sbuf_len / sizeof(uint32_t)); i++)
+    {
+        uint8_t dout, din;
+        int rc;
 
-            rc = spi_pa_stream(spi_ctx, sbuf[i], &dout, &din);
-            if (SPI_PA_DATA_VALID == rc) {
-                decode_count++;
-            }
-            sample_count++;
+        rc = spi_pa_stream(spi_ctx, sbuf[i], &dout, &din);
+        if (SPI_PA_DATA_VALID == rc) {
+            decode_count++;
         }
-//    }
+        sample_count++;
+    }
     ts_end = clock();
     spi_pa_ctx_cleanup(spi_ctx);
     elapsed = (double)(ts_end - ts_start) / CLOCKS_PER_SEC;
     printf("Time elapsed: %f seconds\n", elapsed);
     printf("Samples processed: %lu (%lu samples/s)\n", sample_count, (unsigned long) (sample_count/elapsed));
     printf("Decode count: %lu (%lu bytes/s)\n", decode_count, (unsigned long) (decode_count/elapsed));
-
     munmap(sbuf, sbuf_len);
+}
+
+void test_adc(void)
+{
+    uint8_t *abuf;
+    size_t abuf_len;
+    uint16_t *ch0, *ch1, *ch2;
+
+    abuf = mmap_file("3ch_analog_raw_50Mhz.bin", &abuf_len);
+
+    adc_ch_samples(abuf, 0, &ch0);
+    adc_ch_samples(abuf, 1, &ch1);
+    adc_ch_samples(abuf, 2, &ch2);
+
+    for (uint64_t i = 0; i < 100; i++) {
+        printf("ch0: %d, ch1: %d, ch2: %d\n",
+        ch0[i], ch1[i], ch2[i]);
+    }
+}
+
+int main(void)
+{
+
+    test_spi_pa();
+    test_adc();
 
     return 0;
 }

@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <errno.h>
 
+#include <unistd.h>
+
 #include "spi_pa.h"
 
 #define SPI_MOSI 0x1
@@ -233,7 +235,24 @@ int spi_pa_stream(struct spi_pa_ctx *ctx, uint32_t raw_sample, uint8_t *mosi, ui
     return stream_decoder(ctx, spi_sample, mosi, miso);
 }
 
-int spi_pkt_buf_alloc(struct spi_pkt_buf **pbuf)
+int spi_pkt_buf_alloc(struct spi_pkt_buf **new_pbuf)
+{
+    struct spi_pkt_buf *pbuf;
+    long page_size = sysconf(_SC_PAGESIZE);
+    if (NULL == pbuf)
+        return -EINVAL;
+
+    pbuf = calloc(1, sizeof(struct spi_pkt_buf));
+    pbuf->mosi = calloc(page_size, sizeof (uint8_t));
+    pbuf->miso = calloc(page_size, sizeof (uint8_t));
+    pbuf->idx = calloc(page_size, sizeof (uint32_t));
+
+    *new_pbuf = pbuf;
+
+    return 0;
+}
+
+void spi_pkt_buf_free(struct spi_pkt_buf *pbuf)
 {
 
 }
