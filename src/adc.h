@@ -11,7 +11,7 @@ struct adc_cal {
 
 struct analog_cap {
     uint64_t nsamples;
-    uint16_t nchannels;
+    uint32_t nchannels;
     float period;
     struct adc_cal *cal;
     uint16_t **samples;
@@ -19,8 +19,7 @@ struct analog_cap {
 
 struct digital_cap {
     uint64_t nsamples;
-    uint16_t nchannels;
-    float sample_period;
+    float period;
     uint32_t *samples;
 };
 

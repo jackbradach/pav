@@ -36,10 +36,10 @@ void test_spi_pa(void)
     clock_t ts_start, ts_end;
     double elapsed;
 
-    uint32_t *sbuf;
     uint64_t sample_count = 0;
     uint64_t decode_count = 0;
-    size_t sbuf_len;
+    struct digital_cap *dcap;
+    int rc;
 
     /* Init SPI decoder and map physical channels to logical ones */
     spi_pa_ctx_init(&spi_ctx);
@@ -50,15 +50,18 @@ void test_spi_pa(void)
     spi_pa_ctx_set_flags(spi_ctx, SPI_FLAG_ENDIANESS);
 
     /* Map sample file into memory */
-    sbuf = mmap_file("16ch_quadspi_100mhz.bin", &sbuf_len);
+    rc = saleae_import_digital("16ch_quadspi_100mhz.bin", sizeof(uint32_t), &dcap);
+    if (rc) {
+        printf("rc: %d\n", rc);
+    }
 
     ts_start = clock();
-    for (unsigned long i = 0; i < (sbuf_len / sizeof(uint32_t)); i++)
+    for (unsigned long i = 0; i < dcap->nsamples; i++)
     {
         uint8_t dout, din;
         int rc;
 
-        rc = spi_pa_stream(spi_ctx, sbuf[i], &dout, &din);
+        rc = spi_pa_stream(spi_ctx, dcap->samples[i], &dout, &din);
         if (SPI_PA_DATA_VALID == rc) {
             decode_count++;
         }
@@ -70,7 +73,6 @@ void test_spi_pa(void)
     printf("Time elapsed: %f seconds\n", elapsed);
     printf("Samples processed: %lu (%lu samples/s)\n", sample_count, (unsigned long) (sample_count/elapsed));
     printf("Decode count: %lu (%lu bytes/s)\n", decode_count, (unsigned long) (decode_count/elapsed));
-    munmap(sbuf, sbuf_len);
 }
 
 void test_adc(void)

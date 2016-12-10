@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -16,7 +17,7 @@ struct __attribute__((__packed__)) saleae_analog_header {
 };
 
 /* Local prototypes */
-static int mmap_file(const char *filename, size_t *length, void **buf);
+static int mmap_file(const char *filename, void **buf, size_t *length);
 static void saleae_print_analog_header(struct saleae_analog_header *hdr);
 
 
@@ -38,7 +39,7 @@ int saleae_import_analog(const char *cap_file, const char *cal_file, struct anal
     struct adc_cal *cal = NULL;
     int rc;
 
-    rc = mmap_file(cap_file, &abuf_len, &abuf);
+    rc = mmap_file(cap_file, &abuf, &abuf_len);
     if (rc == -ENOENT) {
         printf("Unable to open analog capture file '%s'!\n", cap_file);
         return -1;
@@ -77,12 +78,39 @@ int saleae_import_analog(const char *cap_file, const char *cal_file, struct anal
      return 0;
 }
 
-void saleae_import_digital(const char *filename, struct analog_cap **cap)
+int saleae_import_digital(const char *cap_file, size_t sample_width, struct digital_cap **new_dcap)
 {
+    void *dbuf;
+    size_t dbuf_len;
+    struct digital_cap *dcap;
+    int rc;
 
+    rc = mmap_file(cap_file, &dbuf, &dbuf_len);
+    if (rc == -ENOENT) {
+        printf("Unable to open digital capture file '%s'!\n", cap_file);
+        return -1;
+    }
+
+    dcap = calloc(1, sizeof(struct digital_cap));
+    dcap->samples = calloc(dbuf_len, sizeof(uint32_t));
+    dcap->nsamples = dbuf_len / sample_width;
+    memcpy(dcap->samples, dbuf, dcap->nsamples);
+    munmap(dbuf, dbuf_len);
+    *new_dcap = dcap;
+
+    return 0;
 }
 
-static int mmap_file(const char *filename, size_t *length, void **buf)
+/* Function: mmap_file
+ *
+ * Maps a file contents into memory.
+ *
+ * Parameters:
+ *      filename - file to load
+ *      buf - uninitialized handle which will receive a pointer
+ *      len - size_t point in which the length is returned.
+ */
+static int mmap_file(const char *filename, void **buf, size_t *len)
 {
     int fd;
     struct stat st;
@@ -98,7 +126,7 @@ static int mmap_file(const char *filename, size_t *length, void **buf)
     addr = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     close(fd);
 
-    *length = st.st_size;
+    *len = st.st_size;
     *buf = addr;
 
     return 0;
