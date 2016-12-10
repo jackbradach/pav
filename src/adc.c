@@ -21,6 +21,9 @@ struct __attribute__((__packed__)) analog_header {
     double sample_period;
 };
 
+/* Static prototypes */
+static int adc_convert(struct analog_cap *acap, struct digital_cap **dcap, uint16_t v_lo, uint16_t v_hi);
+
 /* From Saleae's website */
 float adc_apply_scale(uint16_t sample, struct adc_cal *cal)
 {
@@ -36,19 +39,47 @@ float adc_apply_scale(uint16_t sample, struct adc_cal *cal)
     return scaled;
 }
 
-uint16_t adc_volt_to_raw(float voltage)
+uint16_t adc_volt_to_raw(float voltage, struct adc_cal *cal)
 {
+    const float adc_max = 4095.0;
+    float vmax, vmin;
+    uint16_t adc_raw;
 
+    /* If calibration struct provided, override default voltage swings. */
+    vmax = (cal) ? cal->vmax : VMAX_DEFAULT;
+    vmin = (cal) ? cal->vmin : VMIN_DEFAULT;
+
+    adc_raw = (adc_max * (voltage - vmin)) / (vmax - vmin);
+    return adc_raw;
 }
 
-void adc_print_saleae_hdr(void *abuf)
+int adc_ttl_convert(struct analog_cap *acap, struct digital_cap **dcap)
 {
-    struct analog_header *hdr = abuf;
-    printf("Analog buffer parser\n");
-    printf("Total samples: %lu\n", hdr->sample_total);
-    printf("Channel count: %u\n", hdr->channel_count);
-    printf("Sample period: %e\n", hdr->sample_period);
+    const uint16_t ttl_low = adc_volt_to_raw(0.8f, acap->cal);
+    const uint16_t ttl_high = adc_volt_to_raw(2.0f, acap->cal);
+    return adc_convert(acap, dcap, ttl_low, ttl_high);
 }
+
+static int adc_convert(struct analog_cap *acap, struct digital_cap **dcap, uint16_t v_lo, uint16_t v_hi)
+{
+    uint32_t digital = 0;
+
+    for (uint16_t sample = 0; sample < acap->nsamples; sample++) {
+        for (uint16_t ch = 0; ch < acap->nchannels; ch++) {
+            /* Digital samples only change when crossing the voltage
+             * thresholds.
+             */
+            uint16_t ch_sample = acap->samples[ch][sample];
+            if (ch_sample <= v_lo) {
+                digital &= ~(1 << ch);
+            } else if (ch_sample >= v_hi) {
+                digital |= (1 << ch);
+            }
+        }
+    }
+}
+
+
 
 int adc_ch_samples(void *abuf, uint8_t ch, uint16_t **ch_buf)
 {
@@ -72,7 +103,6 @@ int adc_ch_samples(void *abuf, uint8_t ch, uint16_t **ch_buf)
     raw_ch = (uint16_t *) calloc(hdr->sample_total, sizeof(uint16_t));
 
     for (uint64_t i = 0; i < hdr->sample_total; i++) {
-        printf("%f \n", samples[i]);
         raw_ch[i] = (uint16_t) samples[i];
     }
     *ch_buf = raw_ch;

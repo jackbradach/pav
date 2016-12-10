@@ -9,6 +9,7 @@
 
 #include "spi_pa.h"
 #include "adc.h"
+#include "saleae.h"
 
 void *mmap_file(const char *filename, size_t *length)
 {
@@ -74,20 +75,15 @@ void test_spi_pa(void)
 
 void test_adc(void)
 {
-    uint8_t *abuf;
-    size_t abuf_len;
-    uint16_t *ch0, *ch1, *ch2;
+    struct analog_cap *acap;
+    int rc;
 
-    abuf = mmap_file("3ch_analog_raw_50Mhz.bin", &abuf_len);
+    rc = saleae_import_analog("3ch_analog_raw_50Mhz.bin", NULL, &acap);
 
-    adc_ch_samples(abuf, 0, &ch0);
-    adc_ch_samples(abuf, 1, &ch1);
-    adc_ch_samples(abuf, 2, &ch2);
-
-    for (uint64_t i = 0; i < 100; i++) {
-        printf("ch0: %d, ch1: %d, ch2: %d\n",
-        ch0[i], ch1[i], ch2[i]);
+    if (rc) {
+        printf("rc: %d\n", rc);
     }
+
 }
 
 int main(void)
