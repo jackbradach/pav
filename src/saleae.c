@@ -78,7 +78,7 @@ int saleae_import_analog(const char *cap_file, const char *cal_file, struct anal
      return 0;
 }
 
-int saleae_import_digital(const char *cap_file, size_t sample_width, struct digital_cap **new_dcap)
+int saleae_import_digital(const char *cap_file, size_t sample_width, float freq, struct digital_cap **new_dcap)
 {
     void *dbuf;
     size_t dbuf_len;
@@ -94,6 +94,8 @@ int saleae_import_digital(const char *cap_file, size_t sample_width, struct digi
     dcap = calloc(1, sizeof(struct digital_cap));
     dcap->samples = calloc(dbuf_len, sizeof(uint32_t));
     dcap->nsamples = dbuf_len / sample_width;
+    dcap->period = 1.0f/freq;
+
     memcpy(dcap->samples, dbuf, dcap->nsamples);
     munmap(dbuf, dbuf_len);
     *new_dcap = dcap;

@@ -60,10 +60,20 @@ int adc_ttl_convert(struct analog_cap *acap, struct digital_cap **dcap)
     return adc_convert(acap, dcap, ttl_low, ttl_high);
 }
 
-static int adc_convert(struct analog_cap *acap, struct digital_cap **dcap, uint16_t v_lo, uint16_t v_hi)
+static int adc_convert(struct analog_cap *acap, struct digital_cap **udcap, uint16_t v_lo, uint16_t v_hi)
 {
-    uint32_t digital = 0;
+    uint32_t digital;
+    struct digital_cap *dcap;
 
+    /* Allocate a digital_cap structure with the same parameters
+     * of the analog_cap
+     */
+    dcap = calloc(1, sizeof(struct digital_cap));
+    dcap->nsamples = acap->nsamples;
+    dcap->period = acap->period;
+    dcap->samples = calloc(dcap->nsamples, sizeof(uint32_t));
+
+    digital = 0;
     for (uint16_t sample = 0; sample < acap->nsamples; sample++) {
         for (uint16_t ch = 0; ch < acap->nchannels; ch++) {
             /* Digital samples only change when crossing the voltage
@@ -78,8 +88,6 @@ static int adc_convert(struct analog_cap *acap, struct digital_cap **dcap, uint1
         }
     }
 }
-
-
 
 int adc_ch_samples(void *abuf, uint8_t ch, uint16_t **ch_buf)
 {
