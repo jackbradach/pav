@@ -96,7 +96,7 @@ int saleae_import_digital(const char *cap_file, size_t sample_width, float freq,
     dcap->nsamples = dbuf_len / sample_width;
     dcap->period = 1.0f/freq;
 
-    memcpy(dcap->samples, dbuf, dcap->nsamples);
+    memcpy(dcap->samples, dbuf, dbuf_len);
     munmap(dbuf, dbuf_len);
     *new_dcap = dcap;
 

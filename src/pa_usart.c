@@ -44,7 +44,7 @@ struct pa_usart_state {
     uint32_t bit_width;
     uint32_t bit_frac_cnt;
     uint8_t nbits_sampled;
-    uint32_t last_transition;
+    uint8_t data_valid;
     int sm;
 };
 
@@ -92,6 +92,116 @@ static inline uint8_t unswizzle_sample(struct pa_usart_ctx *ctx, uint32_t sample
     return unswizzled;
 }
 
+
+static inline void sm_idle(struct pa_usart_ctx *ctx, uint8_t sample)
+{
+    struct pa_usart_state *state = ctx->state;
+    if (USART_PA_SPACE == sample) {
+        state->sm = USART_SM_SOF;
+        state->nbits_sampled = 0;
+        // XXX - autobaud disabled
+        // state->bit_width = 1;
+        state->bit_frac_cnt = 1;
+        state->data = 0;
+    }
+}
+
+/* Function: sm_sof
+ *
+ * USART Decoder State Machine: Start of Frame
+ */
+static inline void sm_sof(struct pa_usart_ctx *ctx, uint8_t sample)
+{
+    struct pa_usart_state *state = ctx->state;
+
+    if (USART_PA_MARK == sample) {
+        /* A start bit is valid as long as it's at least half the bit
+         * width.  If not, it's a spurious start; go back to idle.
+         */
+        if (state->bit_frac_cnt >= (state->bit_width / 2)) {
+            state->sm = USART_SM_DATA;
+            state->bit_frac_cnt = 1;
+        } else {
+            // TODO - jbradach - 2016/12/11 - add some sort of error feedback
+            // TODO - to the caller on when a spurious bit happened.
+            printf("Spurious start bit!\n");
+            state->sm = USART_SM_IDLE;
+        }
+    } else if (state->bit_frac_cnt == state->bit_width) {
+        /* Bit time expired */
+        state->sm = USART_SM_DATA;
+        state->bit_frac_cnt = 1;
+    } else {
+        /* TICK! */
+        state->bit_frac_cnt++;
+    }
+
+    state->data = 0;
+}
+
+/* Function: sm_data
+ *
+ * USART Decoder State Machine: Data bit sampling
+ */
+static inline void sm_data(struct pa_usart_ctx *ctx, uint8_t sample)
+{
+    struct pa_usart_state *state = ctx->state;
+
+    /* Sample as close to the middle of the bit as we can. */
+    if (state->bit_frac_cnt == (state->bit_width / 2)) {
+        state->data >>= 1;
+        state->data |= (sample << (ctx->symbol_length - 1));
+        state->nbits_sampled++;
+        state->bit_frac_cnt++;
+    } else if (state->bit_frac_cnt >= state->bit_width) {
+        /* If we haven't sampled enough bits to make a symbol,
+         * get ready for the next one; otherwise we're watching
+         * for the stop bit.
+         */
+        if (state->nbits_sampled == ctx->symbol_length) {
+            state->sm = USART_SM_EOF;
+        }
+        state->bit_frac_cnt = 1;
+    } else {
+        /* TICK! */
+        state->bit_frac_cnt++;
+    }
+}
+
+/* Function: sm_data
+ *
+ * USART Decoder State Machine: End-of-Frame stop bit detection
+ */
+static inline void sm_eof(struct pa_usart_ctx *ctx, uint8_t sample)
+{
+    struct pa_usart_state *state = ctx->state;
+
+    if (state->bit_frac_cnt == state->bit_width) {
+        state->sm = USART_SM_IDLE;
+        state->data_valid = 1;
+    } else if (state->bit_frac_cnt == (state->bit_width / 2)) {
+        // TODO - jbradach - 2016/12/11 - Report framing error to caller
+        // TODO - so they can discard the data or calculate how far out
+        // TODO - of spec it was.  Kick back to SOF and try to go from there.
+        if (USART_PA_MARK != sample) {
+            printf("\nFraming error in STOP bit!\n");
+            state->sm = USART_SM_SOF;
+            state->bit_frac_cnt = 0;
+        }
+    } else if (state->bit_frac_cnt > (state->bit_width / 2)) {
+        /* If the stop bit is truncated by a space before it's seen as
+         * valid, report a framing error.  It's still a valid SOF for
+         * the next frame, though.
+         */
+         if (USART_PA_SPACE == sample) {
+            state->sm = USART_SM_SOF;
+            state->data_valid = 1;
+            state->bit_frac_cnt = 0;
+        }
+    }
+    state->bit_frac_cnt++;
+}
+
 /* Function: stream_decoder
  *
  * Stateful decoding of a USART stream.
@@ -109,93 +219,22 @@ static inline uint8_t unswizzle_sample(struct pa_usart_ctx *ctx, uint32_t sample
 static int stream_decoder(struct pa_usart_ctx *ctx, uint8_t sample, uint8_t *out)
 {
     struct pa_usart_state *state = ctx->state;
-#if 0
-    if (sample)
-        printf("H");
-    else
-        printf("L");
-#endif
+
     switch (state->sm) {
         case USART_SM_IDLE:
-            if (USART_PA_SPACE == sample) {
-                state->sm = USART_SM_SOF;
-                state->nbits_sampled = 0;
-                // XXX - autobaud disabled
-                // state->bit_width = 1;
-                state->bit_frac_cnt = 1;
-                state->data = 0;
-                printf("\nSOF | ");
-                fflush(stdin);
-            }
+            sm_idle(ctx, sample);
             break;
 
         case USART_SM_SOF:
-            /* If the first data bit is MARK, the start bit can
-             * be cut in half, although I doubt much commercial
-             * hardware does that these days.
-             */
-            if ((USART_PA_MARK == sample) &&
-                (state->bit_frac_cnt >= (state->bit_width / 2)))
-            {
-                state->sm = USART_SM_DATA;
-                state->bit_frac_cnt = 1;
-            } else if (state->bit_frac_cnt == state->bit_width) {
-                state->sm = USART_SM_DATA;
-                state->bit_frac_cnt = 1;
-            } else if (USART_PA_MARK == sample) {
-                printf("Spurious start bit!\n");
-                state->sm = USART_SM_IDLE;
-            } else {
-                state->bit_frac_cnt++;
-            }
+            sm_sof(ctx, sample);
             break;
 
         case USART_SM_DATA:
-            /* Sample at the middle of the bit */
-            if (state->bit_frac_cnt == (state->bit_width / 2)) {
-                state->data >>= 1;
-                state->data |= (sample << (ctx->symbol_length - 1));
-                state->nbits_sampled++;
-                state->bit_frac_cnt++;
-                printf("\nSample! @ %d (%d)\n", state->bit_frac_cnt,
-                    state->bit_width - state->bit_frac_cnt);
-                printf("nbits: %d\n", state->nbits_sampled );
-            } else if (state->bit_frac_cnt >= state->bit_width) {
-
-                /* If we haven't sampled enough bits to make a symbol,
-                 * get ready for the next one; otherwise we're watching
-                 * for the stop bit.
-                 */
-                if (state->nbits_sampled == ctx->symbol_length) {
-                    state->sm = USART_SM_EOF;
-                    printf("EOF\n");
-
-                }
-                state->bit_frac_cnt = 1;
-            } else {
-                state->bit_frac_cnt++;
-            }
-
+            sm_data(ctx, sample);
             break;
 
         case USART_SM_EOF:
-            /* Very similar to the data bit sampling, but
-             * if there's not a mark at the bit midpoint
-             * toss out a framing error.
-             */
-            if ((USART_PA_SPACE == sample) &&
-                 (state->bit_frac_cnt > (state->bit_width / 2))) {
-                     state->sm = USART_SM_SOF;
-                     printf("SOF @ %d (%d)\n", state->bit_frac_cnt,
-                         state->bit_width - state->bit_frac_cnt);
-                state->bit_frac_cnt++;
-            } else if (state->bit_frac_cnt == state->bit_width) {
-                state->sm = USART_SM_IDLE;
-            } else if (USART_PA_SPACE == sample) {
-                    printf("\nFraming error in STOP bit!\n");
-            } else {
-                state->bit_frac_cnt++;
-            }
+            sm_eof(ctx, sample);
             break;
 
         default:
@@ -203,10 +242,14 @@ static int stream_decoder(struct pa_usart_ctx *ctx, uint8_t sample, uint8_t *out
             state->sm = USART_SM_DATA;
     }
 
-    if (state->nbits_sampled == ctx->symbol_length) {
-        printf("d: %c\n", state->data);
+    if (state->data_valid) {
+        *out = state->data;
+        state->data_valid = 0;
+        state->data = 0;
         state->nbits_sampled = 0;
+        return PA_USART_DATA_VALID;
     }
+
     return 0;
 }
 

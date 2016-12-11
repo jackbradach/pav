@@ -122,8 +122,6 @@ void test_pa_usart(void)
         rc = pa_usart_stream(usart_ctx, dcap->samples[i], &dout);
         if (PA_SPI_DATA_VALID == rc) {
             decode_count++;
-            printf("%x ", dout);
-            fflush(stdout);
         }
         sample_count++;
     }
@@ -139,6 +137,7 @@ void test_pa_usart(void)
 
 int main(void)
 {
+    /* Make printf add an appropriate thousand's delimiter, based on locale */
     setlocale(LC_NUMERIC, "");
 //    test_pa_spi();
     test_pa_usart();
