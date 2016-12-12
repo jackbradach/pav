@@ -52,7 +52,7 @@ void test_pa_spi(void)
     pa_spi_ctx_set_flags(spi_ctx, SPI_FLAG_ENDIANESS);
 
     /* Map sample file into memory */
-    rc = saleae_import_digital("16ch_quadspi_100mhz.bin", 100.0E6, sizeof(uint32_t), &dcap);
+    rc = saleae_import_digital("16ch_quadspi_100mhz.bin", sizeof(uint32_t), 100.0E6, &dcap);
     if (rc) {
         printf("rc: %d\n", rc);
     }
@@ -79,14 +79,49 @@ void test_pa_spi(void)
 
 void test_adc(void)
 {
+    pa_usart_ctx_t *usart_ctx;
+    clock_t ts_start, ts_end;
+    double elapsed;
     struct analog_cap *acap;
+    struct digital_cap *dcap;
     int rc;
 
-    rc = saleae_import_analog("3ch_analog_raw_50Mhz.bin", NULL, &acap);
+    uint64_t sample_count = 0;
+    uint64_t decode_count = 0;
 
+    /* Init USART decode, all defaults are fine. */
+    pa_usart_ctx_init(&usart_ctx);
+    pa_usart_ctx_map_data(usart_ctx, 0);
+    pa_usart_ctx_set_freq(usart_ctx, 50.0E6);
+
+    rc = saleae_import_analog("uart_analog_115200_50mHz.bin", NULL, &acap);
     if (rc) {
         printf("rc: %d\n", rc);
+        abort();
     }
+    ts_start = clock();
+    adc_ttl_convert(acap, &dcap);
+    uint8_t dout;
+
+    for (unsigned long i = 0; i < dcap->nsamples; i++)
+    {
+        uint8_t dout;
+        int rc;
+
+        rc = pa_usart_stream(usart_ctx, dcap->samples[i], &dout);
+        if (PA_SPI_DATA_VALID == rc) {
+    //        printf("%c", dout);
+            decode_count++;
+        }
+        sample_count++;
+    }
+    ts_end = clock();
+    printf("\n");
+    pa_usart_ctx_cleanup(usart_ctx);
+    elapsed = (double)(ts_end - ts_start) / CLOCKS_PER_SEC;
+    printf("Time elapsed: %f seconds\n", elapsed);
+    printf("Samples processed: %'lu (%'lu samples/s)\n", sample_count, (unsigned long) (sample_count/elapsed));
+    printf("Decode count: %'lu (%'lu bytes/s)\n", decode_count, (unsigned long) (decode_count/elapsed));
 
 }
 
@@ -139,10 +174,10 @@ int main(void)
 {
     /* Make printf add an appropriate thousand's delimiter, based on locale */
     setlocale(LC_NUMERIC, "");
-//    test_pa_spi();
+    test_pa_spi();
     test_pa_usart();
     printf("\n");
-//    test_adc();
+    test_adc();
 
     return 0;
 }

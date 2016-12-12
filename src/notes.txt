@@ -35,3 +35,9 @@ Convert from raw sample value only in the last step.  Get raw sample
 for interesting voltages to use as a trigger.
 
 Record 3.3v serial data with analog, use TTL voltages to turn into digital.
+
+
+sudo rm -rf oprofile_data
+sudo operf --calgraph ../build/bin/pav
+opreport -c > profile_info.txt
+gprof2dot -f oprofile --strip profile_info.txt | dot -Tsvg > profile_graph.svg

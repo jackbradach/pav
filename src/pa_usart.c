@@ -92,7 +92,10 @@ static inline uint8_t unswizzle_sample(struct pa_usart_ctx *ctx, uint32_t sample
     return unswizzled;
 }
 
-
+/* Function: sm_idle
+ *
+ * USART Decoder State Machine: Idle
+ */
 static inline void sm_idle(struct pa_usart_ctx *ctx, uint8_t sample)
 {
     struct pa_usart_state *state = ctx->state;

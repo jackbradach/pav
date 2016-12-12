@@ -74,19 +74,22 @@ static int adc_convert(struct analog_cap *acap, struct digital_cap **udcap, uint
     dcap->samples = calloc(dcap->nsamples, sizeof(uint32_t));
 
     digital = 0;
-    for (uint16_t sample = 0; sample < acap->nsamples; sample++) {
+    for (uint64_t idx = 0; idx < acap->nsamples; idx++) {
         for (uint16_t ch = 0; ch < acap->nchannels; ch++) {
             /* Digital samples only change when crossing the voltage
              * thresholds.
              */
-            uint16_t ch_sample = acap->samples[ch][sample];
+            uint16_t ch_sample = acap->samples[ch][idx];
             if (ch_sample <= v_lo) {
                 digital &= ~(1 << ch);
             } else if (ch_sample >= v_hi) {
                 digital |= (1 << ch);
             }
         }
+        dcap->samples[idx] = digital;
     }
+
+    *udcap = dcap;
 }
 
 int adc_ch_samples(void *abuf, uint8_t ch, uint16_t **ch_buf)
