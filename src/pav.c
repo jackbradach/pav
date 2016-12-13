@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <omp.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -40,7 +41,7 @@ void test_pa_spi(void)
 
     uint64_t sample_count = 0;
     uint64_t decode_count = 0;
-    struct digital_cap *dcap;
+    struct cap_digital *dcap;
     int rc;
 
     /* Init SPI decoder and map physical channels to logical ones */
@@ -77,13 +78,13 @@ void test_pa_spi(void)
     printf("Decode count: %'lu (%'lu bytes/s)\n", decode_count, (unsigned long) (decode_count/elapsed));
 }
 
-void test_adc(void)
+void test_adc_stream_single(void)
 {
     pa_usart_ctx_t *usart_ctx;
     clock_t ts_start, ts_end;
     double elapsed;
-    struct analog_cap *acap;
-    struct digital_cap *dcap;
+    struct cap_analog *acap;
+    struct cap_digital *dcap;
     int rc;
 
     uint64_t sample_count = 0;
@@ -103,26 +104,93 @@ void test_adc(void)
     adc_ttl_convert(acap, &dcap);
     uint8_t dout;
 
-    for (unsigned long i = 0; i < dcap->nsamples; i++)
-    {
-        uint8_t dout;
-        int rc;
+    /* Simulate 1 second of traffic by looping */
+    uint64_t run_loop_target = (1/(dcap->nsamples * dcap->period));
+    for (uint64_t loop = 0; loop < run_loop_target; loop++) {
+        for (unsigned long i = 0; i < dcap->nsamples; i++)
+        {
+            uint8_t dout;
+            int rc;
 
-        rc = pa_usart_stream(usart_ctx, dcap->samples[i], &dout);
-        if (PA_SPI_DATA_VALID == rc) {
-    //        printf("%c", dout);
-            decode_count++;
+            rc = pa_usart_stream(usart_ctx, dcap->samples[i], &dout);
+            if (PA_SPI_DATA_VALID == rc) {
+                decode_count++;
+            }
+            sample_count++;
         }
-        sample_count++;
     }
     ts_end = clock();
     printf("\n");
     pa_usart_ctx_cleanup(usart_ctx);
     elapsed = (double)(ts_end - ts_start) / CLOCKS_PER_SEC;
-    printf("Time elapsed: %f seconds\n", elapsed);
+    printf("Time Simulated: 1.0 seconds\n");
+    printf("Real Time: %f seconds\n", elapsed);
     printf("Samples processed: %'lu (%'lu samples/s)\n", sample_count, (unsigned long) (sample_count/elapsed));
     printf("Decode count: %'lu (%'lu bytes/s)\n", decode_count, (unsigned long) (decode_count/elapsed));
+}
 
+void test_adc_stream_multi(uint8_t nstreams)
+{
+    pa_usart_ctx_t *usart_ctx[nstreams];
+    clock_t ts_start, ts_end;
+    double elapsed;
+    struct cap_analog *acap[nstreams];
+    struct cap_digital *dcap[nstreams];
+    int rc;
+
+    uint64_t sample_count = 0;
+    uint64_t decode_count = 0;
+    uint64_t run_loop_target = 0;
+
+
+    /* Init USART decode, all defaults are fine. */
+    for (int i = 0; i < nstreams; i++) {
+        pa_usart_ctx_init(&usart_ctx[i]);
+        pa_usart_ctx_map_data(usart_ctx[i], 0);
+        pa_usart_ctx_set_freq(usart_ctx[i], 50.0E6);
+        saleae_import_analog("uart_analog_115200_50mHz.bin", NULL, &acap[i]);
+    }
+
+    ts_start = clock();
+
+    for (int i = 0; i < nstreams; i++) {
+        adc_ttl_convert(acap[i], &dcap[i]);
+
+    }
+    run_loop_target = (1/(dcap[0]->nsamples * dcap[0]->period));
+    run_loop_target = 5;
+    /* Simulate 1 second of traffic by looping */
+    //for (uint64_t loop = 0; loop < run_loop_target; loop++) {
+        //for (unsigned long i = 0; i < dcap[0]->nsamples; i++)
+        for (unsigned long i = 0; i < 10; i++)
+        {
+            #pragma omp parallel for default(shared)
+            for (int s = 0; s < nstreams; s++) {
+                int rc;
+                uint8_t dout;
+
+                rc = pa_usart_stream(usart_ctx[s], dcap[s]->samples[i], &dout);
+                if (PA_SPI_DATA_VALID == rc) {
+                    #pragma omp atomic
+                    decode_count++;
+                }
+                #pragma omp atomic
+                sample_count++;
+            }
+        }
+    //}
+    ts_end = clock();
+    printf("\n");
+
+    for (int i = 0; i < nstreams; i++) {
+        pa_usart_ctx_cleanup(usart_ctx[i]);
+    }
+    elapsed = (double)(ts_end - ts_start) / CLOCKS_PER_SEC;
+    printf("Time Simulated: %f seconds\n", 1.0);
+    printf("Real Time: %f seconds\n", elapsed);
+    printf("Analog streams decoded: %d\n", nstreams);
+    printf("Samples processed: %'lu (%'lu samples/s)\n", sample_count, (unsigned long) (sample_count/elapsed));
+    printf("Decode count: %'lu (%'lu bytes/s)\n", decode_count, (unsigned long) (decode_count/elapsed));
 }
 
 void test_pa_usart(void)
@@ -133,7 +201,7 @@ void test_pa_usart(void)
 
     uint64_t sample_count = 0;
     uint64_t decode_count = 0;
-    struct digital_cap *dcap;
+    struct cap_digital *dcap;
     int rc;
 
     /* Init USART decode, all defaults are fine. */
@@ -169,15 +237,21 @@ void test_pa_usart(void)
     printf("Decode count: %'lu (%'lu bytes/s)\n", decode_count, (unsigned long) (decode_count/elapsed));
 }
 
+void test_streamer(void)
+{
+    //streamer_new();
+    //streamer_addsub();
+
+}
 
 int main(void)
 {
     /* Make printf add an appropriate thousand's delimiter, based on locale */
     setlocale(LC_NUMERIC, "");
-    test_pa_spi();
-    test_pa_usart();
-    printf("\n");
-    test_adc();
-
+//    test_pa_spi();
+//    test_pa_usart();
+//    printf("\n");
+//    test_adc_stream_single();
+//    test_adc_stream_multi(2);
     return 0;
 }

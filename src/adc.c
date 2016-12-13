@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "adc.h"
+#include "cap.h"
 
 #if 0
 printf("Analog buffer parser\n");
@@ -15,17 +16,12 @@ printf("Sample period: %e\n", hdr->sample_period);
 const float VMAX_DEFAULT = 10.0f;
 const float VMIN_DEFAULT = -10.0f;
 
-struct __attribute__((__packed__)) analog_header {
-    uint64_t sample_total;
-    uint32_t channel_count;
-    double sample_period;
-};
 
 /* Static prototypes */
-static int adc_convert(struct analog_cap *acap, struct digital_cap **dcap, uint16_t v_lo, uint16_t v_hi);
+static int adc_convert(struct cap_analog *acap, struct cap_digital **dcap, uint16_t v_lo, uint16_t v_hi);
 
 /* From Saleae's website */
-float adc_apply_scale(uint16_t sample, struct adc_cal *cal)
+float adc_sample_to_voltage(uint16_t sample, struct adc_cal *cal)
 {
     const float adc_max = 4095.0;
     float vmax, vmin;
@@ -39,7 +35,7 @@ float adc_apply_scale(uint16_t sample, struct adc_cal *cal)
     return scaled;
 }
 
-uint16_t adc_volt_to_raw(float voltage, struct adc_cal *cal)
+uint16_t adc_voltage_to_sample(float voltage, struct adc_cal *cal)
 {
     const float adc_max = 4095.0;
     float vmax, vmin;
@@ -53,22 +49,22 @@ uint16_t adc_volt_to_raw(float voltage, struct adc_cal *cal)
     return adc_raw;
 }
 
-int adc_ttl_convert(struct analog_cap *acap, struct digital_cap **dcap)
+int adc_ttl_convert(struct cap_analog *acap, struct cap_digital **dcap)
 {
-    const uint16_t ttl_low = adc_volt_to_raw(0.8f, acap->cal);
-    const uint16_t ttl_high = adc_volt_to_raw(2.0f, acap->cal);
+    const uint16_t ttl_low = adc_voltage_to_sample(0.8f, acap->cal);
+    const uint16_t ttl_high = adc_voltage_to_sample(2.0f, acap->cal);
     return adc_convert(acap, dcap, ttl_low, ttl_high);
 }
 
-static int adc_convert(struct analog_cap *acap, struct digital_cap **udcap, uint16_t v_lo, uint16_t v_hi)
+static int adc_convert(struct cap_analog *acap, struct cap_digital **udcap, uint16_t v_lo, uint16_t v_hi)
 {
     uint32_t digital;
-    struct digital_cap *dcap;
+    struct cap_digital *dcap;
 
-    /* Allocate a digital_cap structure with the same parameters
-     * of the analog_cap
+    /* Allocate a cap_digital structure with the same parameters
+     * of the cap_analog
      */
-    dcap = calloc(1, sizeof(struct digital_cap));
+    dcap = calloc(1, sizeof(struct cap_digital));
     dcap->nsamples = acap->nsamples;
     dcap->period = acap->period;
     dcap->samples = calloc(dcap->nsamples, sizeof(uint32_t));
@@ -90,33 +86,4 @@ static int adc_convert(struct analog_cap *acap, struct digital_cap **udcap, uint
     }
 
     *udcap = dcap;
-}
-
-int adc_ch_samples(void *abuf, uint8_t ch, uint16_t **ch_buf)
-{
-    struct analog_header *hdr;
-    float *samples;
-    uint16_t *raw_ch;
-
-    if ((NULL == abuf) || (NULL == ch_buf)) {
-        return -EINVAL;
-    }
-
-    hdr = (struct analog_header *) abuf;
-    if (ch >= hdr->channel_count) {
-        printf("Tried to extract a non-existant channel! (%d, max %d)\n",
-            ch, hdr->channel_count - 1);
-        return -EINVAL;
-    }
-
-    samples = (float *) (abuf + sizeof(struct analog_header) +
-                (ch * (sizeof(float) * hdr->sample_total)));
-    raw_ch = (uint16_t *) calloc(hdr->sample_total, sizeof(uint16_t));
-
-    for (uint64_t i = 0; i < hdr->sample_total; i++) {
-        raw_ch[i] = (uint16_t) samples[i];
-    }
-    *ch_buf = raw_ch;
-
-    return 0;
 }

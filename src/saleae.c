@@ -30,11 +30,11 @@ static void saleae_print_analog_header(struct saleae_analog_header *hdr)
     printf("Sample period: %.02e\n", hdr->sample_period);
 }
 
-int saleae_import_analog(const char *cap_file, const char *cal_file, struct analog_cap **new_acap)
+int saleae_import_analog(const char *cap_file, const char *cal_file, struct cap_analog **new_acap)
 {
     void *abuf;
     size_t abuf_len;
-    struct analog_cap *acap;
+    struct cap_analog *acap;
     struct saleae_analog_header *hdr;
     struct adc_cal *cal = NULL;
     int rc;
@@ -49,7 +49,7 @@ int saleae_import_analog(const char *cap_file, const char *cal_file, struct anal
     saleae_print_analog_header(hdr);
 
     /* Allocate Analog Capture structure */
-    acap = calloc(1, sizeof(struct analog_cap));
+    acap = calloc(1, sizeof(struct cap_analog));
     acap->nsamples = hdr->sample_total;
     acap->nchannels = hdr->channel_count;
     acap->period = hdr->sample_period;
@@ -78,11 +78,11 @@ int saleae_import_analog(const char *cap_file, const char *cal_file, struct anal
      return 0;
 }
 
-int saleae_import_digital(const char *cap_file, size_t sample_width, float freq, struct digital_cap **new_dcap)
+int saleae_import_digital(const char *cap_file, size_t sample_width, float freq, struct cap_digital **new_dcap)
 {
     void *dbuf;
     size_t dbuf_len;
-    struct digital_cap *dcap;
+    struct cap_digital *dcap;
     int rc;
 
     rc = mmap_file(cap_file, &dbuf, &dbuf_len);
@@ -91,7 +91,7 @@ int saleae_import_digital(const char *cap_file, size_t sample_width, float freq,
         return -1;
     }
 
-    dcap = calloc(1, sizeof(struct digital_cap));
+    dcap = calloc(1, sizeof(struct cap_digital));
     dcap->samples = calloc(dbuf_len, sizeof(uint32_t));
     dcap->nsamples = dbuf_len / sample_width;
     dcap->period = 1.0f/freq;
