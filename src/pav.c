@@ -239,7 +239,10 @@ void test_pa_usart(void)
 
 void test_streamer(void)
 {
-    //streamer_new();
+    struct sstreamer_ctx *streamer;
+//    sstreamer_new(&streamer);
+
+
     //streamer_addsub();
 
 }
@@ -248,10 +251,10 @@ int main(void)
 {
     /* Make printf add an appropriate thousand's delimiter, based on locale */
     setlocale(LC_NUMERIC, "");
-//    test_pa_spi();
-//    test_pa_usart();
+    test_pa_spi();
+    test_pa_usart();
 //    printf("\n");
-//    test_adc_stream_single();
+    test_adc_stream_single();
 //    test_adc_stream_multi(2);
     return 0;
 }

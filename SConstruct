@@ -11,7 +11,7 @@ AddOption('--build',
 
 #-fdiagnostic-color
 env = Environment(BUILDDIR=GetOption('build'),
-                  CCFLAGS='-g -O0 -fdiagnostics-color -fopenmp',
+                  CCFLAGS='-g -O3 -fdiagnostics-color -fopenmp',
                   LINKFLAGS='-fopenmp -lgomp')
 
 obj_dir = os.path.join(GetOption('build'), '')

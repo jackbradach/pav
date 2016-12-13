@@ -1,14 +1,52 @@
 # SCons build script for a Protocol Analyzer Validator (pav)
 # TODO: come up with a better name.
-import os.path
+from os import walk
+from os.path import basename, splitext, isfile, join
+import fnmatch
 
 version = "0.0.1"
 
 Import('env')
 
-objs = []
-src = env.Glob("*.c")
-pav_bin = env.Program(target='bin/pav',
-                      source=src)
+# Build the PAV binary
+pav_src = env.Glob("*.c")
 
-env.Alias('bin', [pav_bin])
+pav_objs = []
+for src in pav_src:
+    name, ext =  splitext(basename(str(src)))
+    prefix = 'obj/'
+    pav_objs.extend(env.SharedObject(prefix + name, src))
+
+pav_bin = env.Program(target='bin/pav',
+                      source=[pav_objs],
+                      LIBS='gomp')
+
+# Build unit tests
+ut_env = env.Environment()
+ut_env.Replace(CCFLAGS='-g -O0 -fdiagnostics-color -fopenmp -fprofile-arcs -ftest-coverage')
+ut_env.Replace(LINKFLAGS='-fopenmp -lgomp -fprofile-arcs -ftest-coverage -lgtest')
+ut_env.Replace(LIBPATH=['/usr/local/lib'])
+ut_env.Replace(CPPPATH=['../src', '/usr/local/include'])
+
+
+
+ut_src = ut_env.Glob("tests/*.cpp")
+ut_pav_objs = []
+prefix = "tests/"
+for root, dirnames, filenames in walk("src"):
+    for filename in fnmatch.filter(filenames, '*.c'):
+        if (filename != 'pav.c'):
+            name, ext = splitext(filename)
+            src = File(filename)
+            ut_pav_objs.extend(env.SharedObject(prefix + name, src))
+
+
+ut_bins = []
+for src in ut_src:
+    name, ext =  splitext(basename(str(src)))
+    prefix = 'tests/'
+    ut_bins.extend(ut_env.Program(target=(prefix + name),
+                          source=[src, ut_pav_objs],
+                          LIBS=['gomp','gtest']))
+
+env.Alias('bin', [pav_bin, ut_bins])
