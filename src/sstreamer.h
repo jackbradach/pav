@@ -26,4 +26,10 @@ struct sstreamer_ctx {
     unsigned nsubs;
 };
 
+void sstreamer_ctx_alloc(struct sstreamer_ctx **uctx);
+void sstreamer_ctx_free(struct sstreamer_ctx *ctx);
+int sstreamer_sub_alloc(struct sstreamer_sub **usub, void *ctx);
+void sstreamer_sub_free(struct sstreamer_sub *sub);
+void sstreamer_add_sub(struct sstreamer_ctx *ctx, struct sstreamer_sub *sub);
+
 #endif

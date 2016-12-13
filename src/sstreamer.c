@@ -9,6 +9,37 @@
 #include "sstreamer.h"
 
 
+
+void sstreamer_ctx_alloc(struct sstreamer_ctx **uctx)
+{
+    struct sstreamer_ctx *ctx;
+
+    // TODO - runtime error handling
+    assert(NULL != uctx);
+
+    ctx = calloc(2, sizeof(struct sstreamer_ctx));
+    /* Subscriber structure pointers.  Allocate enough space for one
+     * up front; we'll realloc geometrically as needed.
+     */
+    ctx->subs = calloc(1, sizeof(struct sstreamer_sub *));
+
+    *uctx = ctx;
+}
+
+void sstreamer_ctx_free(struct sstreamer_ctx *ctx)
+{
+    if (NULL == ctx)
+        return;
+
+    if (ctx->nsubs) {
+        for (int idx = 0; idx < ctx->nsubs; idx++) {
+            struct sstreamer_sub *sub = ctx->subs[idx];
+            ctx->subs[idx] = 0;
+            free(sub);
+        }
+    }
+}
+
 int sstreamer_sub_alloc(struct sstreamer_sub **usub, void *ctx)
 {
     struct sstreamer_sub *sub;
@@ -29,23 +60,6 @@ void sstreamer_sub_free(struct sstreamer_sub *sub)
 }
 
 
-void sstreamer_alloc(struct sstreamer_ctx **uctx)
-{
-    struct sstreamer_ctx *ctx;
-
-    // TODO - runtime error handling
-    assert(NULL != uctx);
-
-    ctx = calloc(2, sizeof(struct sstreamer_ctx));
-    /* Subscriber structure pointers.  Allocate enough space for one
-     * up front; we'll realloc geometrically as needed.
-     */
-    ctx->subs = calloc(1, sizeof(struct sstreamer_sub *));
-
-    *uctx = ctx;
-}
-
-
 void sstreamer_add_sub(struct sstreamer_ctx *ctx, struct sstreamer_sub *sub)
 {
     /* Reallocate the subscribers array if it's at capacity. */
@@ -62,18 +76,4 @@ void sstreamer_add_sub(struct sstreamer_ctx *ctx, struct sstreamer_sub *sub)
 
     ctx->subs[ctx->nsubs] = sub;
     ctx->nsubs++;
-}
-
-void sstreamer_ctx_free(struct sstreamer_ctx *ctx)
-{
-    if (NULL == ctx)
-        return;
-
-    if (ctx->nsubs) {
-        for (int idx = 0; idx < ctx->nsubs; idx++) {
-            struct sstreamer_sub *sub = ctx->subs[idx];
-            ctx->subs[idx] = 0;
-            free(sub);
-        }
-    }
 }

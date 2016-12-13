@@ -23,13 +23,13 @@ env.SConscript('pav.scons',
 
 
 # Build for pav unit tests
-ut_env = Environment(BUILDDIR=GetOption('build'),
-                     CCFLAGS='-g -O0 -fdiagnostics-color -fopenmp -fprofile-arcs -ftest-coverage',
-                     LINKFLAGS='-fopenmp -lgomp -fprofile-arcs -ftest-coverage -lgtest',
-                     LIBPATH=['/usr/local/lib'],
-                     CPPPATH=['#src', '/usr/local/include'])
-ut_env.SConscript('tests.scons',
-                    variant_dir=join(GetOption('build'), 'tests'),
-                    src_dir='src',
-                    duplicate=False,
-                    exports='ut_env')
+# ut_env = Environment(BUILDDIR=GetOption('build'),
+#                      CCFLAGS='-g -O0 -fdiagnostics-color -fopenmp -fprofile-arcs -ftest-coverage',
+#                      LINKFLAGS='-fopenmp -lgomp -fprofile-arcs -ftest-coverage -lgtest',
+#                      LIBPATH=['/usr/local/lib'],
+#                      CPPPATH=['#src', '/usr/local/include'])
+# ut_env.SConscript('tests.scons',
+#                     variant_dir=join(GetOption('build'), 'tests'),
+#                     src_dir='tests',
+#                     duplicate=False,
+#                     exports='ut_env')
