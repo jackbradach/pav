@@ -1,3 +1,24 @@
+/* File: pa_usart.c
+ *
+ * Protocol Analysis routines for Async Serial
+ *
+ * Author: Jack Bradach <jack@bradach.net>
+ *
+ * Copyright (C) 2016 Jack Bradach <jack@bradach.net>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -312,7 +333,6 @@ int usart_pkt_buf_alloc(struct usart_pkt_buf **new_pbuf)
 int pa_usart_ctx_init(struct pa_usart_ctx **new_ctx)
 {
     struct pa_usart_ctx *ctx;
-    struct pa_usart_state *state;
     if (NULL == new_ctx)
         return -EINVAL;
 
@@ -321,9 +341,8 @@ int pa_usart_ctx_init(struct pa_usart_ctx **new_ctx)
      */
     ctx = calloc(1, sizeof(struct pa_usart_ctx));
     ctx->symbol_length = DEFAULT_SYMBOL_LENGTH;
-    state = calloc(1, sizeof(struct pa_usart_state));
+    ctx->state = calloc(1, sizeof(struct pa_usart_state));
 
-    ctx->state = state;
     *new_ctx = ctx;
     return 0;
 }

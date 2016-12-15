@@ -14,7 +14,7 @@ AddOption('--build',
 # Build for pav binary
 env = Environment(BUILDDIR=GetOption('build'),
                   CCFLAGS='-g -O3 -fdiagnostics-color -fopenmp',
-                  LINKFLAGS='-fopenmp -lgomp')
+                  )
 env.SConscript('pav.scons',
                 variant_dir=join(GetOption('build'), 'bin'),
                 src_dir='src',

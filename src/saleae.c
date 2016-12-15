@@ -78,6 +78,74 @@ int saleae_import_analog(const char *cap_file, const char *cal_file, struct cap_
      return 0;
 }
 
+/* Samples are stored as a float in the capture file; convert them
+ * back to uint16_t; the goal here is to store what the hardware would
+ * have spit out.
+ */
+static void cap_import_channel(void *abuf, unsigned ch, uint16_t *samples_out)
+{
+    struct saleae_analog_header *hdr = (struct saleae_analog_header *) abuf;
+    float *ch_start;
+
+    assert(NULL != abuf);
+    assert(NULL != samples_out);
+    assert(ch < 16);
+
+    ch_start = (float *) (abuf + sizeof(struct saleae_analog_header) +
+        (ch * (sizeof(float) * hdr->sample_total)));
+    for (uint64_t i = 0; i < hdr->sample_total; i++) {
+        samples_out[i] = (uint16_t) ch_start[i];
+     }
+}
+
+int saleae_import_analog_new(const char *cap_file, const char *cal_file, struct cap_bundle **new_bundle)
+{
+    void *abuf;
+    size_t abuf_len;
+    struct cap_bundle *bundle;
+    struct saleae_analog_header *hdr;
+    struct adc_cal *cal = NULL;
+    int rc;
+
+    rc = mmap_file(cap_file, &abuf, &abuf_len);
+    if (rc == -ENOENT) {
+        printf("Unable to open analog capture file '%s'!\n", cap_file);
+        return -1;
+    }
+
+    hdr = (struct saleae_analog_header *) abuf;
+    saleae_print_analog_header(hdr);
+
+    /* Allocate a new capture bundle and fill it with capture structures! */
+    bundle = calloc(1, sizeof(struct cap_analog_new));
+    bundle->nacaps = hdr->channel_count;
+    bundle->acaps = calloc(bundle->nacaps, sizeof(struct cap_analog_new *));
+
+    /* Each channel gets its own capture structure; lengths and rates do
+     * not need to be the same.
+     */
+    for (unsigned ch = 0; ch < bundle->nacaps; ch++) {
+        struct cap_analog_new *acap;
+        acap = calloc(1, sizeof(struct cap_analog_new));
+        acap->nsamples = hdr->sample_total;
+        acap->physical_ch = ch;
+        acap->period = hdr->sample_period;
+        acap->cal = NULL;
+
+        acap->samples = calloc(acap->nsamples, sizeof(uint16_t));
+        cap_import_channel(abuf, ch, acap->samples);
+        cap_set_analog_minmax(acap);
+        bundle->acaps[ch] = acap;
+    }
+
+     /* The original file isn't needed anymore. */
+     munmap(abuf, abuf_len);
+     *new_bundle = bundle;
+
+     return 0;
+}
+
+
 int saleae_import_digital(const char *cap_file, size_t sample_width, float freq, struct cap_digital **new_dcap)
 {
     void *dbuf;

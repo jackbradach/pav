@@ -1,3 +1,25 @@
+/* File: pav.c
+ *
+ * Protocol Analyzer Validation - main entry point.
+ *
+ * Author: Jack Bradach <jack@bradach.net>
+ *
+ * Copyright (C) 2016 Jack Bradach <jack@bradach.net>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <assert.h>
 #include <fcntl.h>
 #include <locale.h>
@@ -13,6 +35,10 @@
 #include "pa_usart.h"
 #include "adc.h"
 #include "saleae.h"
+#include "sstreamer.h"
+
+// PLPLOT
+#include "plplot/plplot.h"
 
 void *mmap_file(const char *filename, size_t *length)
 {
@@ -237,13 +263,102 @@ void test_pa_usart(void)
     printf("Decode count: %'lu (%'lu bytes/s)\n", decode_count, (unsigned long) (decode_count/elapsed));
 }
 
-void test_streamer(void)
+void test_sstreamer(void)
 {
     struct sstreamer_ctx *streamer;
-//    sstreamer_new(&streamer);
+    struct cap_digital *dcap;
+    const float capture_freq = 500.0E6;
+    uint64_t sample_count = 0;
+    uint64_t decode_count = 0;
+    int rc;
+
+    sstreamer_ctx_alloc(&streamer);
+
+    /* Load digital samples */
+    rc = saleae_import_digital("uart_digital_115200_500mHz.bin", sizeof(uint32_t), capture_freq, &dcap);
+    assert (0 == rc);
+
+    // Clone channels
+    cap_digital_ch_copy(dcap, 1, 0xFFFE);
+    streamer->dcap = dcap;
+
+    // create decoder contexts
+    for (int i = 0; i < 4; i++) {
+        struct sstreamer_sub *sub;
+        pa_usart_ctx_t *usart_ctx;
+        pa_usart_ctx_init(&usart_ctx);
+        pa_usart_ctx_map_data(usart_ctx, i);
+        pa_usart_ctx_set_freq(usart_ctx, capture_freq);
+        sstreamer_sub_alloc(&sub, usart_ctx);
+        sstreamer_add_sub(streamer, sub);
+    }
 
 
+    //for (uint64_t idx = 0; idx < )
+
+    sstreamer_ctx_free(streamer);
     //streamer_addsub();
+
+}
+
+
+double analog_find_rise_time(uint16_t *buf)
+{
+
+}
+
+
+void test_analog(void)
+{
+    clock_t ts_start, ts_end;
+    double elapsed;
+    struct cap_bundle *cbun;
+    int rc;
+
+    uint64_t sample_count = 0;
+    uint64_t decode_count = 0;
+
+    rc = saleae_import_analog_new("uart_analog_115200_50mHz.bin", NULL, &cbun);
+    if (rc) {
+        printf("rc: %d\n", rc);
+        abort();
+    }
+    ts_start = clock();
+
+
+#if 0
+    float vmin, vmax;
+    vmin = adc_sample_to_voltage(min, NULL);
+    vmax = adc_sample_to_voltage(max, NULL);
+    printf("Min: %d (%02fV)\n", min, vmin);
+    printf("Max: %d (%02fV)\n", max, vmax);
+
+
+    PLFLT *x, *y;
+    PLFLT xmin = 0, ymin = vmin, xmax = 1, ymax = vmax;
+    x = calloc(acap->nsamples, sizeof(PLFLT));
+    y = calloc(acap->nsamples, sizeof(PLFLT));
+
+    for (uint64_t i = 0; i < acap->nsamples; i++) {
+        x[i] = (PLFLT) (i) / (PLFLT) (acap->nsamples - 1);
+        y[i] = adc_sample_to_voltage(acap->samples[0][i], NULL);
+    }
+
+    plsdev("wxwidgets");
+    plinit();
+    plenv(xmin, xmax, ymin, ymax, 0, 0);
+    pllab("sample", "Voltage", "Analog Sample");
+    plline(acap->nsamples, x, y);
+    plend();
+    ts_end = clock();
+    elapsed = (double)(ts_end - ts_start) / CLOCKS_PER_SEC;
+    printf("Real Time: %f seconds\n", elapsed);
+#endif
+    cap_bundle_free(cbun);
+}
+
+void plot_analog(struct cap_analog *acap)
+{
 
 }
 
@@ -251,10 +366,13 @@ int main(void)
 {
     /* Make printf add an appropriate thousand's delimiter, based on locale */
     setlocale(LC_NUMERIC, "");
-    test_pa_spi();
-    test_pa_usart();
+//    test_pa_spi();
+//    test_pa_usart();
 //    printf("\n");
-    test_adc_stream_single();
-//    test_adc_stream_multi(2);
+//    test_adc_stream_single();
+//    test_sstreamer();
+    test_analog();
+
+
     return 0;
 }

@@ -22,6 +22,7 @@ void sstreamer_ctx_alloc(struct sstreamer_ctx **uctx)
      * up front; we'll realloc geometrically as needed.
      */
     ctx->subs = calloc(1, sizeof(struct sstreamer_sub *));
+    ctx->maxsubs = 1;
 
     *uctx = ctx;
 }
@@ -40,7 +41,7 @@ void sstreamer_ctx_free(struct sstreamer_ctx *ctx)
     }
 }
 
-int sstreamer_sub_alloc(struct sstreamer_sub **usub, void *ctx)
+void sstreamer_sub_alloc(struct sstreamer_sub **usub, void *ctx)
 {
     struct sstreamer_sub *sub;
     // TODO - runtime error handling
@@ -49,8 +50,6 @@ int sstreamer_sub_alloc(struct sstreamer_sub **usub, void *ctx)
     sub = calloc(1, sizeof(struct sstreamer_sub));
     sub->ctx = ctx;
     *usub = sub;
-
-    return 0;
 }
 
 void sstreamer_sub_free(struct sstreamer_sub *sub)
@@ -69,7 +68,6 @@ void sstreamer_add_sub(struct sstreamer_ctx *ctx, struct sstreamer_sub *sub)
         new_subs = realloc(ctx->subs, 2 * ctx->maxsubs * sizeof(struct sstreamer_sub **));
         // TODO - add graceful handling although this should never happen.
         assert(NULL != new_subs);
-        memset(new_subs + ctx->nsubs, 0, 2 * ctx->maxsubs * sizeof(struct sstreamer_sub **));
         ctx->subs = new_subs;
         ctx->maxsubs *= 2;
     }

@@ -41,3 +41,9 @@ sudo rm -rf oprofile_data
 sudo operf --calgraph ../build/bin/pav
 opreport -c > profile_info.txt
 gprof2dot -f oprofile --strip profile_info.txt | dot -Tsvg > profile_graph.svg
+
+
+mkdir nd
+mkdir nd/res
+mkdir nd/proj
+naturaldocs -i src -o HTML nd/res -p nd/proj

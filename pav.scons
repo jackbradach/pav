@@ -19,6 +19,6 @@ for src in pav_src:
 
 pav_bin = env.Program(target='pav',
                       source=[pav_objs],
-                      LIBS='gomp')
+                      LIBS=['gomp', 'm', 'plplotwxwidgetsd', 'plplotd'])
 
 env.Alias('bin', [pav_bin])
