@@ -40,24 +40,8 @@
 // PLPLOT
 #include "plplot/plplot.h"
 
-void *mmap_file(const char *filename, size_t *length)
-{
-    int fd;
-    struct stat st;
-    void *addr;
+void plot_analog_cap(struct cap_analog_new *acap, unsigned idx_start, unsigned idx_end);
 
-    // TODO - 2016/12/08 - jbradach - add more robust error handling here.
-    fd = open(filename, O_RDONLY);
-    assert(fd > 0);
-
-    fstat(fd, &st);
-
-    addr = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-    close(fd);
-
-    *length = st.st_size;
-    return addr;
-}
 
 void test_pa_spi(void)
 {
@@ -313,6 +297,7 @@ void test_analog(void)
     clock_t ts_start, ts_end;
     double elapsed;
     struct cap_bundle *cbun;
+    struct cap_analog_new *acap;
     int rc;
 
     uint64_t sample_count = 0;
@@ -323,43 +308,56 @@ void test_analog(void)
         printf("rc: %d\n", rc);
         abort();
     }
+
+    // XXX - Testing!
+    acap = cbun->acaps[0];
+
     ts_start = clock();
 
 
-#if 0
+
+    plot_analog_cap(acap, 10000, 20000);
+    ts_end = clock();
+    elapsed = (double)(ts_end - ts_start) / CLOCKS_PER_SEC;
+    printf("Real Time: %f seconds\n", elapsed);
+    cap_bundle_free(cbun);
+}
+
+void plot_analog_cap(struct cap_analog_new *acap, unsigned idx_start, unsigned idx_end)
+{
     float vmin, vmax;
-    vmin = adc_sample_to_voltage(min, NULL);
-    vmax = adc_sample_to_voltage(max, NULL);
+    uint16_t min, max;
+    PLFLT *x, *y;
+    PLFLT xmin, ymin, xmax, ymax;
+
+    vmin = adc_sample_to_voltage(acap->sample_min, acap->cal);
+    vmax = adc_sample_to_voltage(acap->sample_max, acap->cal);
     printf("Min: %d (%02fV)\n", min, vmin);
     printf("Max: %d (%02fV)\n", max, vmax);
 
-
-    PLFLT *x, *y;
-    PLFLT xmin = 0, ymin = vmin, xmax = 1, ymax = vmax;
     x = calloc(acap->nsamples, sizeof(PLFLT));
     y = calloc(acap->nsamples, sizeof(PLFLT));
 
-    for (uint64_t i = 0; i < acap->nsamples; i++) {
-        x[i] = (PLFLT) (i) / (PLFLT) (acap->nsamples - 1);
-        y[i] = adc_sample_to_voltage(acap->samples[0][i], NULL);
+    xmin = 0;
+    ymin = vmin;
+    xmax = (idx_end - idx_start);
+    ymax = vmax;
+
+    for (uint64_t i = idx_start, j = 0; i < idx_end; i++, j++) {
+        // FIXME: the array needs to start at zero even if the indices do not!
+        x[j] = (PLFLT) (idx_start + j);
+        y[j] = adc_sample_to_voltage(acap->samples[i], acap->cal);
     }
 
     plsdev("wxwidgets");
     plinit();
-    plenv(xmin, xmax, ymin, ymax, 0, 0);
+    plenv(idx_start, idx_end, ymin, ymax + (ymax / 10), 0, 0);
     pllab("sample", "Voltage", "Analog Sample");
-    plline(acap->nsamples, x, y);
+    plcol0(3);
+    plline((idx_end - idx_start), x, y);
     plend();
-    ts_end = clock();
-    elapsed = (double)(ts_end - ts_start) / CLOCKS_PER_SEC;
-    printf("Real Time: %f seconds\n", elapsed);
-#endif
-    cap_bundle_free(cbun);
-}
-
-void plot_analog(struct cap_analog *acap)
-{
-
+    free(x);
+    free(y);
 }
 
 int main(void)
