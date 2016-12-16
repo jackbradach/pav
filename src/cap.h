@@ -23,6 +23,8 @@
 #ifndef _CAP_H_
 #define _CAP_H_
 
+#include <stdint.h>
+
 /* Struct: cap_analog
  *
  * Container for an unprocessed analog capture.
