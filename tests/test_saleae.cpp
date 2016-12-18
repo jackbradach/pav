@@ -28,6 +28,7 @@ TEST(SaleaeTest, ImportAnalogCapture) {
     ASSERT_EQ(acap->period, gold_period);
     ASSERT_TRUE(NULL != acap->samples);
 
+    cap_bundle_destroy(bun);
 }
 #if 0
 int main (int argc, char **argv)

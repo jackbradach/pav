@@ -41,7 +41,7 @@ static inline void refcnt_dec(const struct refcnt *ref)
 {
     int v;
     v = __sync_sub_and_fetch((int *) &ref->count, 1);
-    if (1 == v)
+    if (0 == v)
         ref->free(ref);
 }
 
