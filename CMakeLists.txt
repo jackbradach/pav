@@ -20,7 +20,7 @@ set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Valid options are Debug (default) and
 set(DEFAULT_C_FLAGS "-fopenmp -fdiagnostics-color -Wall")
 
 if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
-    # The CodeCoverage library takes care of adding the needed GCC options 
+    # The CodeCoverage library takes care of adding the needed GCC options
     set(CMAKE_C_FLAGS "${DEFAULT_C_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS}")
     enable_testing()
@@ -36,3 +36,11 @@ add_subdirectory(src)
 
 # Build unit tests
 add_subdirectory(tests)
+
+# Build documentation
+include(build_naturaldocs)
+build_naturaldocs(${CMAKE_PROJECT_NAME}
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_BINARY_DIR}/doc
+    ${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/nd
+)
