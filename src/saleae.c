@@ -19,7 +19,7 @@ struct __attribute__((__packed__)) saleae_analog_header {
 /* Local prototypes */
 static int mmap_file(const char *filename, void **buf, size_t *length);
 static void saleae_print_analog_header(struct saleae_analog_header *hdr);
-
+static void cap_import_channel(void *abuf, unsigned ch, uint16_t *samples_out);
 
 static void saleae_print_analog_header(struct saleae_analog_header *hdr)
 {
@@ -30,6 +30,45 @@ static void saleae_print_analog_header(struct saleae_analog_header *hdr)
     printf("Sample period: %.02e\n", hdr->sample_period);
 }
 
+void saleae_import_analog(const char *src_file, struct cap_bundle **new_bundle)
+{
+    void *abuf;
+    size_t abuf_len;
+    struct cap_bundle *bun;
+    struct saleae_analog_header *hdr;
+    int rc;
+
+    rc = mmap_file(src_file, &abuf, &abuf_len);
+    if (rc == -ENOENT) {
+        printf("Unable to open analog capture file '%s'!\n", src_file);
+        // TODO - 2016/12/15 - jbradach - graceful user input handling!
+        abort();
+    }
+
+    hdr = (struct saleae_analog_header *) abuf;
+    saleae_print_analog_header(hdr);
+
+    assert(hdr->channel_count > 0 && hdr->channel_count <= 16);
+
+    bun = cap_bundle_create(NULL);
+    bun->acaps = calloc(hdr->channel_count, sizeof(struct cap_analog *));
+
+    for (uint16_t ch = 0; ch < hdr->channel_count; ch++) {
+        struct cap_analog *acap = cap_analog_create(NULL);
+        acap->nsamples = hdr->sample_total;
+        acap->period = hdr->sample_period;
+        acap->samples = calloc(hdr->sample_total, sizeof(uint16_t));
+        cap_import_channel(abuf, ch, acap->samples);
+        bun->acaps[ch] = acap;
+    }
+
+    // Digital convert?
+
+    /* Unmap the capture file. */
+    munmap(abuf, abuf_len);
+}
+
+#if 0
 int saleae_import_analog(const char *cap_file, const char *cal_file, struct cap_analog **new_acap)
 {
     void *abuf;
@@ -77,6 +116,7 @@ int saleae_import_analog(const char *cap_file, const char *cal_file, struct cap_
 
      return 0;
 }
+#endif
 
 /* Samples are stored as a float in the capture file; convert them
  * back to uint16_t; the goal here is to store what the hardware would
@@ -117,16 +157,16 @@ int saleae_import_analog_new(const char *cap_file, const char *cal_file, struct 
     saleae_print_analog_header(hdr);
 
     /* Allocate a new capture bundle and fill it with capture structures! */
-    bundle = calloc(1, sizeof(struct cap_analog_new));
+    bundle = calloc(1, sizeof(struct cap_analog));
     bundle->nacaps = hdr->channel_count;
-    bundle->acaps = calloc(bundle->nacaps, sizeof(struct cap_analog_new *));
+    bundle->acaps = calloc(bundle->nacaps, sizeof(struct cap_analog *));
 
     /* Each channel gets its own capture structure; lengths and rates do
      * not need to be the same.
      */
     for (unsigned ch = 0; ch < bundle->nacaps; ch++) {
-        struct cap_analog_new *acap;
-        acap = calloc(1, sizeof(struct cap_analog_new));
+        struct cap_analog *acap;
+        acap = calloc(1, sizeof(struct cap_analog));
         acap->nsamples = hdr->sample_total;
         acap->physical_ch = ch;
         acap->period = hdr->sample_period;

@@ -64,6 +64,8 @@ uint16_t adc_voltage_to_sample(float voltage, struct adc_cal *cal)
     return adc_raw;
 }
 
+// FIXME: update these to use the new analog capture and bundle formats.
+#if 0
 int adc_ttl_convert(struct cap_analog *acap, struct cap_digital **dcap)
 {
     const uint16_t ttl_low = adc_voltage_to_sample(0.8f, acap->cal);
@@ -71,6 +73,9 @@ int adc_ttl_convert(struct cap_analog *acap, struct cap_digital **dcap)
     return adc_convert(acap, dcap, ttl_low, ttl_high);
 }
 
+// TODO - rewrite this so you give it a bundle and it updates the digital channels
+// TODO - with the ADC from the analog.  Need to have a way to prevent an
+// TODO - unrelated analog channel from being included!
 static int adc_convert(struct cap_analog *acap, struct cap_digital **udcap, uint16_t v_lo, uint16_t v_hi)
 {
     uint32_t digital;
@@ -102,3 +107,4 @@ static int adc_convert(struct cap_analog *acap, struct cap_digital **udcap, uint
 
     *udcap = dcap;
 }
+#endif

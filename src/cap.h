@@ -25,6 +25,12 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "refcnt.h"
+
 /* Struct: cap_analog
  *
  * Container for an unprocessed analog capture.
@@ -39,6 +45,7 @@
 // TODO - 2016/12/15 - jbradach - add support for mapping physical channels
 // TODO - to logical ones, so we can capture on eg channels 0, 7, 9, 11 and
 // TODO - have it store them as logical channels [3:0].
+#if 0
 struct cap_analog {
     uint64_t nsamples;
     uint32_t nchannels;
@@ -46,8 +53,10 @@ struct cap_analog {
     struct adc_cal *cal;
     uint16_t **samples;
 };
+#endif
 
-struct cap_analog_new {
+// Implement as list
+struct cap_analog {
     uint64_t nsamples;
     uint8_t physical_ch;
     float period;
@@ -55,11 +64,7 @@ struct cap_analog_new {
     uint16_t sample_min;
     uint16_t sample_max;
     uint16_t *samples;
-};
-
-struct cap_bundle {
-    unsigned nacaps;
-    struct cap_analog_new **acaps;
+    struct refcnt rcnt;
 };
 
 
@@ -79,16 +84,41 @@ struct cap_digital {
     uint64_t nsamples;
     float period;
     uint32_t *samples;
+    struct refcnt rcnt;
 };
+
+// TODO - Convert acaps to be a dlink-list
+struct cap_bundle {
+    unsigned nacaps;
+    struct cap_analog **acaps;
+    struct cap_digital *dcap;
+    struct refcnt rcnt;
+};
+
 
 #include "adc.h"
 
-void cap_analog_free(struct cap_analog *acap);
-void cap_digital_free(struct cap_digital *dcap);
+/* Analog Capture Utilities */
 void cap_analog_ch_copy(struct cap_analog *acap, uint8_t from, uint32_t to);
-void cap_digital_ch_copy(struct cap_digital *dcap, uint8_t from, uint32_t to);
-void cap_set_analog_minmax(struct cap_analog_new *acap);
+void cap_set_analog_minmax(struct cap_analog *acap);
 
-void cap_bundle_free(struct cap_bundle *bundle);
-void cap_analog_new_free(struct cap_analog_new *acap);
+/* Digital Capture Utilities */
+void cap_digital_ch_copy(struct cap_digital *dcap, uint8_t from, uint32_t to);
+
+/* Capture structure allocation */
+struct cap_analog *cap_analog_create(struct cap_analog *acap);
+struct cap_bundle *cap_bundle_create(struct cap_bundle *bun);
+struct cap_digital *cap_digital_create(struct cap_digital *dcap);
+
+void cap_analog_set_cal(struct cap_analog *acap, struct adc_cal *cal);
+
+/* Capture structure cleanup */
+void cap_analog_destroy(struct cap_analog *acap);
+void cap_bundle_destroy(struct cap_bundle *bundle);
+void cap_digital_destroy(struct cap_digital *dcap);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

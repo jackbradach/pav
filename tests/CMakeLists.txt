@@ -8,7 +8,9 @@ include_directories(${GTEST_INCLUDE_DIRS})
 set(TEST_SRCS
     test_cap.cpp
     test_saleae.cpp
+    test_pa_spi.cpp
 )
+#test_pa_spi.cpp
 
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
@@ -25,3 +27,13 @@ target_link_libraries(${CMAKE_PROJECT_NAME}_tests ${GTEST_BOTH_LIBRARIES} protov
 if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
     setup_target_for_coverage(coverage ${CMAKE_PROJECT_NAME}_tests cov)
 endif()
+
+
+add_custom_command(
+    TARGET ${CMAKE_PROJECT_NAME}_tests
+    PRE_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/tests/captures/
+            ${EXECUTABLE_OUTPUT_PATH}
+    COMMENT BLAH
+)

@@ -24,6 +24,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum pa_spi_status {
     PA_SPI_IDLE,
     PA_SPI_ACTIVE,
@@ -70,5 +74,9 @@ int pa_spi_ctx_set_flags(pa_spi_ctx_t *ctx, uint8_t flag_mask);
 int pa_spi_ctx_clr_flags(pa_spi_ctx_t *ctx, uint8_t flag_mask);
 
 int pa_spi_stream(struct pa_spi_ctx *ctx, uint32_t raw_sample, uint8_t *mosi, uint8_t *miso);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
