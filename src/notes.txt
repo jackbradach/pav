@@ -1,3 +1,11 @@
+TODO:
+- Implement linked-list for capture types
+- Implement pav capture export
+- Import zlib support (compress/decompress files on the fly)
+- Rename saleae.c to "file_saleae" or something
+- Generic file interface?
+- Add argparser for pav.
+
 
 Using fgetc loop:
 Time elapsed: 0.133932 seconds

@@ -23,10 +23,17 @@
 #include <stdint.h>
 
 #include "cap.h"
+#include "queue.h"
 
+/* Static prototypes - these get automatically called by
+ * the reference counter.
+ */
+static void cap_free(const struct refcnt *ref);
+static void cap_analog_free(struct cap_analog *acap);
+static void cap_digital_free(struct cap_digital *dcap);
 static void cap_bundle_free(const struct refcnt *ref);
-static void cap_analog_free(const struct refcnt *ref);
-static void cap_digital_free(const struct refcnt *ref);
+
+#if 0
 
 /* Function: cap_analog_ch_copy
  *
@@ -76,16 +83,19 @@ void cap_digital_ch_copy(struct cap_digital *dcap, uint8_t from, uint32_t to)
         dcap->samples[i] = tmp;
     }
 }
+#endif
 
 /* Populates the min/max fields of an acap */
 void cap_set_analog_minmax(struct cap_analog *acap)
 {
     uint16_t min = 4095;
     uint16_t max = 0;
+    unsigned nsamples;
 
     assert(NULL != acap);
 
-    for (uint64_t i = 0; i < acap->nsamples; i++) {
+    nsamples = acap->super.nsamples;
+    for (uint64_t i = 0; i < nsamples; i++) {
         uint16_t sample = acap->samples[i];
         if (sample < min) {
             min = sample;
@@ -112,50 +122,128 @@ void cap_set_analog_minmax(struct cap_analog *acap)
  * See Also:
  *  <cap_analog_destroy>
  */
-struct cap_analog *cap_analog_create(struct cap_analog *acap)
+struct cap_analog *cap_analog_create(void)
 {
     struct cap_analog *cap;
-
-    if (acap) {
-        refcnt_inc(&acap->rcnt);
-        cap = acap;
-    } else {
-        cap = calloc(1, sizeof(struct cap_analog));
-        cap->rcnt = (struct refcnt) { cap_analog_free, 1 };
-    }
-
+    cap = calloc(1, sizeof(struct cap_analog));
+    cap->super.rcnt = (struct refcnt) { cap_free, 1 };
+    cap->super.type = CAP_TYPE_ANALOG;
     return cap;
 }
 
-/* Function: cap_analog_destroy
+
+/* Function: cap_add_ref
  *
- * Mark an analog capture structure as no longer used; if no otherwise
- * references are held to the structure, it'll be cleaned up and the
- * memory freed.
+ * Adds a reference to a capture structure and returns a pointer
+ * for the caller to use.  Caller should use this instead of the
+ * original pointer in case a new structure needed to be created.
  *
  * Parameters:
- *  acap - handle to an analog capture structure
+ *  cap - handle to a capture structure
+ *
+ * Returns:
+ *  pointer to capture structure
+ *
+ * See Also:
+ *  <cap_dropref>
  */
-void cap_analog_destroy(struct cap_analog *acap)
+cap_base_t *cap_addref(cap_base_t *cap)
 {
-    assert(NULL != acap);
-    refcnt_dec(&acap->rcnt);
+    assert(NULL != cap);
+    refcnt_inc(&cap->rcnt);
+    return cap;
+}
+
+/* Function: cap_dropref
+ *
+ * Removes a reference to a capture structure, freeing the capture
+ * structure if  and returns a pointer
+ * for the caller to use.  Caller should use this instead of the
+ * original pointer in case a new structure needed to be created.
+ *
+ * Parameters:
+ *  cap - handle to a capture structure
+ *
+ * Returns:
+ *  pointer to capture structure
+ *
+ * See Also:
+ *  <cap_dropref>
+ */
+void cap_dropref(cap_base_t *cap)
+{
+    assert(NULL != cap);
+    refcnt_dec(&cap->rcnt);
+}
+
+/* Function: cap_getref
+ *
+ * Returns the number of active references to a capture
+ *
+ * Parameters:
+ *  cap - handle to a capture structure
+ *
+ * Returns:
+ *  Number of active references
+ *
+ * See Also:
+ *  <cap_addref>, <cap_dropref>
+ */
+unsigned cap_getref(cap_base_t *cap)
+{
+    assert(NULL != cap);
+    return cap->rcnt.count;
+}
+
+/* Function: cap_free
+ *
+ * Cleanup callback for capture structures.  It calls the
+ * correct analog/digital cleanup based on the capture type.
+ * This will be called automatically by cap_drop_ref when
+ * the structure has no more references.
+ *
+ * Parameters:
+ *  ref - handle to a reference counter embedded in a capture bundle
+ */
+static void cap_free(const struct refcnt *ref)
+{
+    cap_base_t *cap =
+        container_of(ref, cap_base_t, rcnt);
+
+    assert(NULL != cap);
+
+    /* Clean up child structure */
+    switch (cap->type) {
+        case CAP_TYPE_ANALOG:
+            cap_analog_free((struct cap_analog *) cap);
+            break;
+        case CAP_TYPE_DIGITAL:
+            cap_digital_free((struct cap_digital *) cap);
+            break;
+        default:
+            /* Abort on invalid type! */
+            abort();
+            break;
+    }
+
+    if (cap->note) {
+        free(cap->note);
+    }
+
+    free(cap);
 }
 
 /* Function: cap_analog_free
  *
  * Cleanup callback for an analog capture structure; this gets
- * called automatically by cap_analog_destroy when the structure
+ * called automatically by cap_drop_ref when the structure
  * has no more references.
  *
  * Parameters:
- *  ref - handle to a reference counter embedded in a capture bundle
+ *  acap - handle to a cap_analog struct
  */
-static void cap_analog_free(const struct refcnt *ref)
+static void cap_analog_free(struct cap_analog *acap)
 {
-    struct cap_analog *acap =
-        container_of(ref, struct cap_analog, rcnt);
-
     assert(NULL != acap);
 
     if (acap->cal) {
@@ -167,36 +255,119 @@ static void cap_analog_free(const struct refcnt *ref)
         free(acap->samples);
         acap->samples = NULL;
     }
+}
 
-    free(acap);
+/* Function: cap_digital_create
+ *
+ * Allocates and initializes a new digital capture structure.
+ *
+ * Returns:
+ *  pointer to new cap_digital.
+ *
+ * See Also:
+ *  <cap_digital_destroy>
+ */
+struct cap_digital *cap_digital_create(void)
+{
+    struct cap_digital *cap;
+    cap = calloc(1, sizeof(struct cap_digital));
+    cap->super.rcnt = (struct refcnt) { cap_free, 1 };
+    cap->super.type = CAP_TYPE_DIGITAL;
+    return cap;
+}
+
+/* Function: cap_digital_free
+ *
+ * Cleanup callback for an digital capture structure; this gets
+ * called automatically by cap_drop_ref when the structure
+ * has no more references.
+ *
+ * Parameters:
+ *  dcap - handle to a cap_digital struct
+ */
+static void cap_digital_free(struct cap_digital *dcap)
+{
+    assert(NULL != dcap);
+
+    if (dcap->samples)
+        free(dcap->samples);
 }
 
 /* Function: cap_bundle_create
  *
- * Allocates and initializes a new capture bundle
- * or increments a reference to an existing one.
- *
- * Parameters:
- *  bun - if not null, will have its refcnt incremented
+ * Allocates and initializes a new capture bundle.
  *
  * Returns:
- *  pointer to new or existing cap_analog.
+ *  pointer to new capture bundle.
  *
  * See Also:
  *  <cap_bundle_destroy>
  */
-struct cap_bundle *cap_bundle_create(struct cap_bundle *bun)
+struct cap_bundle *cap_bundle_create(void)
 {
     struct cap_bundle *b;
-    if (bun) {
-        refcnt_inc(&bun->rcnt);
-        b = bun;
-    } else {
-        b = calloc(1, sizeof(struct cap_bundle));
-        b->rcnt = (struct refcnt) { cap_bundle_free, 1 };
-    }
+    b = calloc(1, sizeof(struct cap_bundle));
+    b->rcnt = (struct refcnt) { cap_bundle_free, 1 };
+
+    /* Set up an empty capture list */
+    b->caps = calloc(1, sizeof(struct cap_list));
+    TAILQ_INIT(b->caps);
+
+    /* Map function pointers */
+#if 0
+    b->add = &cap_bundle_add;
+    b->remove = &cap_bundle_remove;
+    b->get = &cap_bundle_get;
+    b->len = &cap_bundle_len;
+#endif
     return b;
 }
+
+/* Function: cap_bundle_addref
+ *
+ * Adds a reference to a capture bundle and returns a pointer
+ * for the caller to use.  Caller should use this instead of the
+ * original pointer in case a new structure needed to be created.
+ *
+ * Parameters:
+ *  b - handle to a capture bundle structure
+ *
+ * Returns:
+ *  pointer to capture bundle structure
+ *
+ * See Also:
+ *  <cap_dropref>
+ */
+struct cap_bundle *cap_bundle_addref(struct cap_bundle *b)
+{
+    assert(NULL != b);
+    refcnt_inc(&b->rcnt);
+    return b;
+}
+
+/* Function: cap_bundle_dropref
+ *
+ * Removes a reference to a capture bundle, freeing the capture
+ * structure if  and returns a pointer
+ * for the caller to use.  Caller should use this instead of the
+ * original pointer in case a new structure needed to be created.
+ *
+ * Parameters:
+ *  cap - handle to a capture structure
+ *
+ * Returns:
+ *  pointer to capture structure
+ *
+ * See Also:
+ *  <cap_bundle_create>, <cap_bundle_addref>
+ */
+void cap_bundle_dropref(struct cap_bundle *b)
+{
+    assert(NULL != b);
+    refcnt_dec(&b->rcnt);
+}
+
+
 
 /* Function: cap_bundle_destroy
  *
@@ -224,91 +395,21 @@ void cap_bundle_destroy(struct cap_bundle *bundle)
  */
 static void cap_bundle_free(const struct refcnt *ref)
 {
-    struct cap_bundle *bundle =
+    struct cap_base *cur, *tmp;
+    struct cap_bundle *b =
         container_of(ref, struct cap_bundle, rcnt);
 
-    assert(NULL != bundle);
-
-    /* Drop reference count on all child structures. */
-    if (bundle->acaps) {
-        for (unsigned i = 0; i < bundle->nacaps; i++) {
-            if (bundle->acaps[i]) {
-                cap_analog_destroy(bundle->acaps[i]);
-                bundle->acaps[i] = NULL;
-            }
-        }
-        free(bundle->acaps);
-        bundle->acaps = NULL;
+        /* Drop reference count on all child structures. */
+    assert(NULL != b);
+    TAILQ_FOREACH_SAFE(cur, b->caps, entry, tmp) {
+        TAILQ_REMOVE(b->caps, cur, entry);
+        cap_dropref(cur);
     }
-
-    free (bundle);
+    free(b->caps);
+    free(b);
 }
 
-/* Function: cap_digital_create
- *
- * Allocates and initializes a new digital capture structure
- * or increments a reference to an existing one.
- *
- * Parameters:
- *  dcap - if not null, will have its refcnt incremented
- *
- * Returns:
- *  pointer to new or existing cap_digital.
- *
- * See Also:
- *  <cap_digital_destroy>
- */
-struct cap_digital *cap_digital_create(struct cap_digital *dcap)
-{
-    struct cap_digital *cap;
 
-    if (dcap) {
-        refcnt_inc(&dcap->rcnt);
-        cap = dcap;
-    } else {
-        cap = calloc(1, sizeof(struct cap_digital));
-        cap->rcnt = (struct refcnt) { cap_digital_free, 1 };
-    }
-
-    return cap;
-}
-
-/* Function: cap_digital_destroy
- *
- * Mark an digital capture structure as no longer used; if no otherwise
- * references are held to the structure, it'll be cleaned up and the
- * memory freed.
- *
- * Parameters:
- *  dcap - handle to an digital capture structure
- */
-void cap_digital_destroy(struct cap_digital *dcap)
-{
-    assert(NULL != dcap);
-    refcnt_dec(&dcap->rcnt);
-}
-
-/* Function: cap_digital_free
- *
- * Cleanup callback for an digital capture structure; this gets
- * called automatically by cap_digital_destroy when the structure
- * has no more references.
- *
- * Parameters:
- *  ref - handle to a reference counter embedded in a digital capture
- */
-static void cap_digital_free(const struct refcnt *ref)
-{
-    struct cap_digital *dcap =
-        container_of(ref, struct cap_digital, rcnt);
-
-    assert(NULL != dcap);
-
-    if (dcap->samples)
-        free(dcap->samples);
-
-    free(dcap);
-}
 
 void cap_analog_set_cal(struct cap_analog *acap, struct adc_cal *cal)
 {

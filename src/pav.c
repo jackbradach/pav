@@ -264,7 +264,7 @@ void test_analog(gui_ctx_t *gui)
 
 int main(void)
 {
-    gui_ctx_t *gui;
+    //gui_ctx_t *gui;
 
     /* Make printf add an appropriate thousand's delimiter, based on locale */
     setlocale(LC_NUMERIC, "");
@@ -276,7 +276,6 @@ int main(void)
 //    test_analog();
 //    gui_init(&gui);
 //    test_analog(gui);
-    cap_analog_create(NULL);
     sleep(1);
 
 //    SDL_Quit();

@@ -27,13 +27,12 @@
 #include "adc.h"
 #include "cap.h"
 
-
 const float VMAX_DEFAULT = 10.0f;
 const float VMIN_DEFAULT = -10.0f;
 
 
 /* Static prototypes */
-static int adc_convert(struct cap_analog *acap, struct cap_digital **dcap, uint16_t v_lo, uint16_t v_hi);
+//static int adc_convert(struct cap_analog *acap, struct cap_digital **dcap, uint16_t v_lo, uint16_t v_hi);
 
 /* From Saleae's website */
 float adc_sample_to_voltage(uint16_t sample, struct adc_cal *cal)
@@ -62,6 +61,49 @@ uint16_t adc_voltage_to_sample(float voltage, struct adc_cal *cal)
 
     adc_raw = (adc_max * (voltage - vmin)) / (vmax - vmin);
     return adc_raw;
+}
+
+void adc_acap_ttl(struct cap_analog *acap)
+{
+    const uint16_t ttl_low = adc_voltage_to_sample(0.8f, acap->cal);
+    const uint16_t ttl_high = adc_voltage_to_sample(2.0f, acap->cal);
+    adc_acap(acap, ttl_low, ttl_high);
+}
+
+void adc_acap(struct cap_analog *acap, uint16_t v_lo, uint16_t v_hi)
+{
+    unsigned nsamples;
+    struct cap_digital *dcap;
+
+    /* Shred any existing digital capture */
+    // TODO - 2016/12/17 - jbradach - this probably ought to allow merging
+    // TODO - with existing digital samples.  Also, any 'updating' is really
+    // TODO - more abandoning the old dcap (it'll be freed if no one holds a
+    // TODO - handle) and creating a new one.  This'll make copying them around
+    // TODO - less of a headache.
+    if (acap->dcap)
+        cap_dropref((cap_base_t *) acap->dcap);
+
+    dcap = cap_digital_create();
+
+    nsamples = acap->super.nsamples;
+    dcap->samples = calloc(nsamples, sizeof(uint8_t));
+
+    for (uint64_t i = 0; i < nsamples; i++) {
+        static uint8_t digital = 0;
+        /* Digital samples only change when crossing the voltage
+         * thresholds.
+         */
+        uint16_t ch_sample = acap->samples[i];
+        if (ch_sample <= v_lo) {
+            digital = 0;
+        } else if (ch_sample >= v_hi) {
+            digital = 1;
+        }
+        dcap->samples[i] = digital;
+    }
+
+    acap->dcap = dcap;
 }
 
 // FIXME: update these to use the new analog capture and bundle formats.

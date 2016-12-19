@@ -25,6 +25,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Struct: adc_cal
  *
  * Calibration values for analog samples, these are used to convert
@@ -33,13 +37,19 @@
  * provided.
  */
 struct adc_cal {
-    double vmax;
     double vmin;
+    double vmax;
 };
 
 #include "cap.h"
 
 float adc_sample_to_voltage(uint16_t sample, struct adc_cal *cal);
 uint16_t adc_voltage_to_sample(float voltage, struct adc_cal *cal);
-int adc_ttl_convert(struct cap_analog *acap, struct cap_digital **dcap);
+void adc_acap_ttl(struct cap_analog *acap);
+void adc_acap(struct cap_analog *acap, uint16_t v_lo, uint16_t v_hi);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

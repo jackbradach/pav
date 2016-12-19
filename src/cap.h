@@ -29,6 +29,7 @@
 extern "C" {
 #endif
 
+#include "queue.h"
 #include "refcnt.h"
 
 /* Struct: cap_analog
@@ -55,44 +56,62 @@ struct cap_analog {
 };
 #endif
 
-// Implement as list
-struct cap_analog {
+enum cap_types {
+    CAP_TYPE_INVALID = 0,
+    CAP_TYPE_ANALOG,
+    CAP_TYPE_DIGITAL
+};
+
+struct cap_base {
+    TAILQ_ENTRY(cap_base) entry;
+    char *note;
     uint64_t nsamples;
     uint8_t physical_ch;
     float period;
+    enum cap_types type;
+    struct refcnt rcnt;
+};
+TAILQ_HEAD(cap_list, cap_base);
+typedef struct cap_base cap_base_t;
+
+
+struct cap_analog {
+    cap_base_t super;
+
+    /* Analog-specific fields */
     struct adc_cal *cal;
     uint16_t sample_min;
     uint16_t sample_max;
     uint16_t *samples;
-    struct refcnt rcnt;
+    struct cap_digital *dcap;
 };
-
 
 /* Struct: cap_digital
  *
- * Container for an unprocessed digital capture.
+ * Container for a processed digital capture.
  *
  * Fields:
  *  nsamples - Number of samples in capture
  *  period - time between each subsequent sample
  *  samples - An array of captures, bits map directly to channels.
  */
-// TODO - 2016/12/15 - jbradach - add support for mapping physical channels
-// TODO - to logical ones, same as for analog.  Maybe "original channel"
-// TODO - would be simple enough.
+// TODO - 2016/12/17 - jbradach - only using one-bit of sample, should
+// TODO - maybe pack them in and have a 'getsample' function?
 struct cap_digital {
-    uint64_t nsamples;
-    float period;
-    uint32_t *samples;
-    struct refcnt rcnt;
+    cap_base_t super;
+
+    /* Digital-specific fields */
+    uint8_t *samples;
 };
 
-// TODO - Convert acaps to be a dlink-list
+// TODO - Convert caps to be a dlink-list of capture_base_t
 struct cap_bundle {
-    unsigned nacaps;
-    struct cap_analog **acaps;
-    struct cap_digital *dcap;
     struct refcnt rcnt;
+    struct cap_list *caps;
+    void (*add)(struct cap_bundle *bundle, cap_base_t *cap);
+    void (*remove)(struct cap_bundle *bundle, cap_base_t *cap);
+    cap_base_t *(*get)(struct cap_bundle *bundle, unsigned idx);
+    unsigned (*len)(struct cap_bundle *bundle);
 };
 
 
@@ -106,16 +125,26 @@ void cap_set_analog_minmax(struct cap_analog *acap);
 void cap_digital_ch_copy(struct cap_digital *dcap, uint8_t from, uint32_t to);
 
 /* Capture structure allocation */
-struct cap_analog *cap_analog_create(struct cap_analog *acap);
-struct cap_bundle *cap_bundle_create(struct cap_bundle *bun);
-struct cap_digital *cap_digital_create(struct cap_digital *dcap);
+struct cap_analog *cap_analog_create(void);
+struct cap_bundle *cap_bundle_create(void);
+struct cap_digital *cap_digital_create(void);
 
 void cap_analog_set_cal(struct cap_analog *acap, struct adc_cal *cal);
 
-/* Capture structure cleanup */
-void cap_analog_destroy(struct cap_analog *acap);
+/* Capture structure manipulation */
+cap_base_t *cap_addref(cap_base_t *cap);
+void cap_dropref(cap_base_t *cap);
+unsigned cap_getref(cap_base_t *cap);
+void cap_destroy(cap_base_t *cap);
 void cap_bundle_destroy(struct cap_bundle *bundle);
-void cap_digital_destroy(struct cap_digital *dcap);
+
+/* List operations to add / remove captures to the bundle list. */
+void cap_bundle_add(struct cap_bundle *bundle, cap_base_t *cap);
+void cap_bundle_remove(struct cap_bundle *bundle, cap_base_t *cap);
+cap_base_t *cap_bundle_get(struct cap_bundle *bundle, unsigned idx);
+unsigned cap_bundle_len(struct cap_bundle *bundle);
+
+
 
 #ifdef __cplusplus
 }

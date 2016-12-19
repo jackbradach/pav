@@ -50,20 +50,21 @@ void saleae_import_analog(const char *src_file, struct cap_bundle **new_bundle)
 
     assert(hdr->channel_count > 0 && hdr->channel_count <= 16);
 
-    bun = cap_bundle_create(NULL);
-    bun->acaps = calloc(hdr->channel_count, sizeof(struct cap_analog *));
+    bun = cap_bundle_create();
 
     for (uint16_t ch = 0; ch < hdr->channel_count; ch++) {
-        struct cap_analog *acap = cap_analog_create(NULL);
-        acap->nsamples = hdr->sample_total;
-        acap->period = hdr->sample_period;
+        struct cap_analog *acap = cap_analog_create();
+        struct cap_base *cap = &acap->super;
+        cap->nsamples = hdr->sample_total;
+        cap->physical_ch = ch;
+        cap->period = hdr->sample_period;
         acap->samples = calloc(hdr->sample_total, sizeof(uint16_t));
         cap_import_channel(abuf, ch, acap->samples);
-        bun->acaps[ch] = acap;
-        bun->nacaps++;
+        cap_set_analog_minmax(acap);
+        /* Create a digital version of the analog capture */
+        adc_acap_ttl(acap);
+        TAILQ_INSERT_TAIL(bun->caps, cap, entry);
     }
-
-    // Digital convert?
 
     /* Unmap the capture file. */
     munmap(abuf, abuf_len);
@@ -91,7 +92,7 @@ static void cap_import_channel(void *abuf, unsigned ch, uint16_t *samples_out)
      }
 }
 
-
+#if 0
 
 int saleae_import_digital(const char *cap_file, size_t sample_width, float freq, struct cap_digital **new_dcap)
 {
@@ -117,6 +118,7 @@ int saleae_import_digital(const char *cap_file, size_t sample_width, float freq,
 
     return 0;
 }
+#endif
 
 /* Function: mmap_file
  *
