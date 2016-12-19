@@ -6,9 +6,10 @@ include_directories(${CMAKE_SOURCE_DIR}/src)
 include_directories(${GTEST_INCLUDE_DIRS})
 
 set(TEST_SRCS
+    test_adc.cpp
     test_cap.cpp
     test_saleae.cpp
-    test_pa_spi.cpp
+#    test_pa_spi.cpp
 )
 #test_pa_spi.cpp
 
@@ -35,5 +36,4 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/tests/captures/
             ${EXECUTABLE_OUTPUT_PATH}
-    COMMENT BLAH
 )
