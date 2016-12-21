@@ -28,6 +28,7 @@
 #include <unistd.h>
 
 #include "pa_usart.h"
+#include "proto.h"
 
 #define DEFAULT_SYMBOL_LENGTH 8
 #define DEFAULT_PARITY USART_PARITY_NONE
@@ -88,6 +89,7 @@ struct pa_usart_ctx {
     uint8_t symbol_length;
     enum usart_parity parity;
     float sample_period;
+    proto_t *pr;
     struct pa_usart_state *state;
 };
 

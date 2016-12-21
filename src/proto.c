@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include "refcnt.h"
 #include "queue.h"
 
@@ -18,7 +19,8 @@
 struct proto_dframe {
     TAILQ_ENTRY(proto_dframe) entry;
     uint64_t idx;
-    uint8_t data;
+    int type;
+    void *udata;
 };
 TAILQ_HEAD(dframes_list, proto_dframe);
 
@@ -28,22 +30,23 @@ TAILQ_HEAD(dframes_list, proto_dframe);
  *
  */
 struct proto {
-    char *note[64];
+    char note[PROTO_MAX_NOTE_LEN];
     struct refcnt rcnt;
     float period;
     uint64_t nframes;
     struct dframes_list head;
 };
 
-void proto_add_dframe(struct proto *pr, uint64_t idx, uint8_t data)
+void proto_add_dframe(struct proto *pr, uint64_t idx, int type, void *udata)
 {
     struct proto_dframe *df;
 
     df = calloc(1, sizeof(struct proto_dframe));
     df->idx = idx;
-    df->data = data;
-
+    df->type = type;
+    df->udata = udata;
     TAILQ_INSERT_TAIL(&pr->head, df, entry);
+    pr->nframes++;
 }
 
 
@@ -123,7 +126,6 @@ unsigned proto_getref(struct proto *p)
     return p->rcnt.count;
 }
 
-
 static void proto_free(const struct refcnt *ref)
 {
     proto_dframe_t *cur, *tmp;
@@ -132,20 +134,27 @@ static void proto_free(const struct refcnt *ref)
 
     TAILQ_FOREACH_SAFE(cur, &pr->head, entry, tmp) {
         TAILQ_REMOVE(&pr->head, cur, entry);
+        if (cur->udata)
+            free(cur->udata);
         free(cur);
     }
 
     free(pr);
 }
 
-uint8_t proto_dframe_data(struct proto_dframe *df)
+void *proto_dframe_udata(struct proto_dframe *df)
 {
-    return df->data;
+    return df->udata;
 }
 
 uint64_t proto_dframe_idx(struct proto_dframe *df)
 {
     return df->idx;
+}
+
+int proto_dframe_type(struct proto_dframe *df)
+{
+    return df->type;
 }
 
 struct proto_dframe *proto_dframe_first(struct proto *pr)
@@ -161,4 +170,19 @@ struct proto_dframe *proto_dframe_next(struct proto_dframe *df)
 struct proto_dframe *proto_dframe_last(struct proto *pr)
 {
     return TAILQ_LAST(&pr->head, dframes_list);
+}
+
+void proto_set_note(proto_t *pr, const char *s)
+{
+    strncpy(pr->note, s, PROTO_MAX_NOTE_LEN);
+}
+
+const char *proto_get_note(struct proto *pr)
+{
+    return &pr->note;
+}
+
+uint64_t proto_get_nframes(struct proto *pr)
+{
+    return pr->nframes;
 }

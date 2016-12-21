@@ -7,6 +7,7 @@
 
 TEST(Proto, ProtoLifeCycle) {
     const char gold_data[] = "+++Test Data Stream+++";
+    const char gold_note[] = "---Test Note---";
     proto_t *pr, *pr2;
     proto_dframe_t *df;
     unsigned refcnt;
@@ -25,27 +26,32 @@ TEST(Proto, ProtoLifeCycle) {
     ASSERT_EQ(refcnt, proto_getref(pr));
 
     /* Populate the proto bucket */
+    proto_set_note(pr, gold_note);
+    ASSERT_STREQ(gold_note, proto_get_note(pr));
+
     for (int i = 0; i < 1000; i++) {
-        proto_add_dframe(pr, i, gold_data[i % strlen(gold_data)]);
+        uint8_t *c = (uint8_t *) malloc(sizeof(uint8_t));
+        *c = gold_data[i % strlen(gold_data)];
+        proto_add_dframe(pr, i, ~i, (void *) c);
     }
+
+    ASSERT_EQ(1000, proto_get_nframes(pr));
 
     /* Verify the data */
     df = proto_dframe_first(pr);
     while (NULL != df) {
         proto_dframe_t *next = proto_dframe_next(df);;
         static int i = 0;
-        uint8_t c;
-        c = gold_data[i % strlen(gold_data)];
-        ASSERT_EQ(i++, proto_dframe_idx(df));
-        ASSERT_EQ(c, proto_dframe_data(df));
-        putc(c, stdout);
-        fflush(stdout);
+        uint8_t c = gold_data[i % strlen(gold_data)];
+        ASSERT_EQ(i, proto_dframe_idx(df));
+        ASSERT_EQ(c, *(uint8_t *) proto_dframe_udata(df));
+        ASSERT_EQ(~i, proto_dframe_type(df));
 
         /* Sanity check on tail */
         if (NULL == next) {
             ASSERT_EQ(df, proto_dframe_last(pr));
         }
-
+        i++;
         df = next;
     }
 
@@ -59,4 +65,9 @@ TEST(Proto, ProtoLifeCycle) {
     ASSERT_EQ(NULL, proto_addref(NULL));
     ASSERT_EQ(0, proto_getref(NULL));
     proto_dropref(NULL);
+
+    /* Setup/Teardown with no data payload */
+    pr = proto_create();
+    proto_add_dframe(pr, 0, 0, NULL);
+    proto_dropref(pr);
 }
