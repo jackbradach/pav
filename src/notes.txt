@@ -5,6 +5,10 @@ TODO:
 - Rename saleae.c to "file_saleae" or something
 - Generic file interface?
 - Add argparser for pav.
+- error counting for pa_usart
+- packet output for pa's, maybe google's generic proto format?
+- risetime/falltime (10/90, 20/80) for analog?
+
 
 
 Using fgetc loop:

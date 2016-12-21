@@ -4,6 +4,8 @@
 #include "pa_spi.h"
 #include "saleae.h"
 
+#define SAMPLE_DIR "bin/"
+
 TEST(PaSpiTest, Functional) {
     pa_spi_ctx_t *spi_ctx;
 
@@ -22,12 +24,12 @@ TEST(PaSpiTest, Functional) {
 
     /* Map sample file into memory */
     // XXX - need to convert these to text fixtures!
-    rc = saleae_import_digital("bin/16ch_quadspi_100mhz.bin", sizeof(uint32_t), 100.0E6, &dcap);
+    rc = saleae_import_digital(SAMPLE_DIR "16ch_quadspi_100mhz.bin", sizeof(uint32_t), 100.0E6, &dcap);
     if (rc) {
         printf("rc: %d\n", rc);
     }
 
-    for (unsigned long i = 0; i < dcap->nsamples; i++)
+    for (unsigned long i = 0; i < dcap->super.nsamples; i++)
     {
         uint8_t dout, din;
         int rc;
@@ -39,6 +41,12 @@ TEST(PaSpiTest, Functional) {
         sample_count++;
     }
     pa_spi_ctx_cleanup(spi_ctx);
-//    printf("Samples processed: %'lu (%'lu samples/s)\n", sample_count, (unsigned long) (sample_count/elapsed));
-//    printf("Decode count: %'lu (%'lu bytes/s)\n", decode_count, (unsigned long) (decode_count/elapsed));
+    ASSERT_TRUE(decode_count > 0);
+    ASSERT_TRUE(sample_count > 0);
 }
+
+#if 0
+printf("Time elapsed: %f seconds\n", elapsed);
+printf("Samples processed: %'lu (%'lu samples/s)\n", sample_count, (unsigned long) (sample_count/elapsed));
+printf("Decode count: %'lu (%'lu bytes/s)\n", decode_count, (unsigned long) (decode_count/elapsed));
+#endif

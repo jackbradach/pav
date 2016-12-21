@@ -132,7 +132,7 @@ struct cap_analog *cap_analog_create(void)
 }
 
 
-/* Function: cap_add_ref
+/* Function: cap_addref
  *
  * Adds a reference to a capture structure and returns a pointer
  * for the caller to use.  Caller should use this instead of the
@@ -147,9 +147,10 @@ struct cap_analog *cap_analog_create(void)
  * See Also:
  *  <cap_dropref>
  */
-cap_base_t *cap_addref(cap_base_t *cap)
+cap_t *cap_addref(cap_t *cap)
 {
-    assert(NULL != cap);
+    if (NULL == cap)
+        return NULL;
     refcnt_inc(&cap->rcnt);
     return cap;
 }
@@ -157,9 +158,7 @@ cap_base_t *cap_addref(cap_base_t *cap)
 /* Function: cap_dropref
  *
  * Removes a reference to a capture structure, freeing the capture
- * structure if  and returns a pointer
- * for the caller to use.  Caller should use this instead of the
- * original pointer in case a new structure needed to be created.
+ * structure when there are no more references.
  *
  * Parameters:
  *  cap - handle to a capture structure
@@ -168,11 +167,12 @@ cap_base_t *cap_addref(cap_base_t *cap)
  *  pointer to capture structure
  *
  * See Also:
- *  <cap_dropref>
+ *  <cap_addref>
  */
-void cap_dropref(cap_base_t *cap)
+void cap_dropref(cap_t *cap)
 {
-    assert(NULL != cap);
+    if (NULL == cap)
+        return;
     refcnt_dec(&cap->rcnt);
 }
 
@@ -189,9 +189,10 @@ void cap_dropref(cap_base_t *cap)
  * See Also:
  *  <cap_addref>, <cap_dropref>
  */
-unsigned cap_getref(cap_base_t *cap)
+unsigned cap_getref(cap_t *cap)
 {
-    assert(NULL != cap);
+    if (NULL == cap)
+        return 0;
     return cap->rcnt.count;
 }
 
@@ -207,10 +208,8 @@ unsigned cap_getref(cap_base_t *cap)
  */
 static void cap_free(const struct refcnt *ref)
 {
-    cap_base_t *cap =
-        container_of(ref, cap_base_t, rcnt);
-
-    assert(NULL != cap);
+    cap_t *cap =
+        container_of(ref, cap_t, rcnt);
 
     /* Clean up child structure */
     switch (cap->type) {
@@ -221,13 +220,8 @@ static void cap_free(const struct refcnt *ref)
             cap_digital_free((struct cap_digital *) cap);
             break;
         default:
-            /* Abort on invalid type! */
-            abort();
+            /* Shouldn't ever get here. */
             break;
-    }
-
-    if (cap->note) {
-        free(cap->note);
     }
 
     free(cap);
@@ -244,8 +238,6 @@ static void cap_free(const struct refcnt *ref)
  */
 static void cap_analog_free(struct cap_analog *acap)
 {
-    assert(NULL != acap);
-
     if (acap->cal) {
         free(acap->cal);
         acap->cal = NULL;
@@ -287,8 +279,6 @@ struct cap_digital *cap_digital_create(void)
  */
 static void cap_digital_free(struct cap_digital *dcap)
 {
-    assert(NULL != dcap);
-
     if (dcap->samples)
         free(dcap->samples);
 }
@@ -340,7 +330,8 @@ struct cap_bundle *cap_bundle_create(void)
  */
 struct cap_bundle *cap_bundle_addref(struct cap_bundle *b)
 {
-    assert(NULL != b);
+    if (NULL == b)
+        return NULL;
     refcnt_inc(&b->rcnt);
     return b;
 }
@@ -363,26 +354,29 @@ struct cap_bundle *cap_bundle_addref(struct cap_bundle *b)
  */
 void cap_bundle_dropref(struct cap_bundle *b)
 {
-    assert(NULL != b);
+    if (NULL == b)
+        return;
     refcnt_dec(&b->rcnt);
 }
 
-
-
-/* Function: cap_bundle_destroy
+/* Function: cap_bundle_getref
  *
- * Mark a capture bundle as no longer used; if no other references are
- * held to the structure, it'll be cleaned up and the memory freed.
+ * Returns the number of active references to a capture bundle
  *
  * Parameters:
- *  bundle - valid handle to an capture bundle structure
+ *  b - handle to a capture bundle
+ *
+ * Returns:
+ *  Number of active references
  *
  * See Also:
- *  <cap_bundle_create>
+ *  <cap_bundle_addref>, <cap_bundle_dropref>
  */
-void cap_bundle_destroy(struct cap_bundle *bundle)
+unsigned cap_bundle_getref(struct cap_bundle *b)
 {
-    refcnt_dec(&bundle->rcnt);
+    if (NULL == b)
+        return 0;
+    return b->rcnt.count;
 }
 
 /* Function: cap_bundle_free
@@ -395,12 +389,11 @@ void cap_bundle_destroy(struct cap_bundle *bundle)
  */
 static void cap_bundle_free(const struct refcnt *ref)
 {
-    struct cap_base *cur, *tmp;
+    cap_t *cur, *tmp;
     struct cap_bundle *b =
         container_of(ref, struct cap_bundle, rcnt);
 
         /* Drop reference count on all child structures. */
-    assert(NULL != b);
     TAILQ_FOREACH_SAFE(cur, b->caps, entry, tmp) {
         TAILQ_REMOVE(b->caps, cur, entry);
         cap_dropref(cur);
@@ -408,8 +401,6 @@ static void cap_bundle_free(const struct refcnt *ref)
     free(b->caps);
     free(b);
 }
-
-
 
 void cap_analog_set_cal(struct cap_analog *acap, struct adc_cal *cal)
 {

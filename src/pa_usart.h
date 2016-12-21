@@ -24,6 +24,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum pa_usart_status {
     PA_USART_IDLE,
     PA_USART_ACTIVE,
@@ -64,5 +68,9 @@ int pa_usart_ctx_set_parity(pa_usart_ctx_t *ctx, enum usart_parity parity);
 int pa_usart_ctx_set_baudrate(pa_usart_ctx_t *ctx, enum usart_baudrates baud);
 
 int pa_usart_stream(struct pa_usart_ctx *ctx, uint32_t raw_sample, uint8_t *out);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

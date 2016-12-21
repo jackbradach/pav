@@ -148,7 +148,7 @@ static inline void sm_sof(struct pa_usart_ctx *ctx, uint8_t sample)
         } else {
             // TODO - jbradach - 2016/12/11 - add some sort of error feedback
             // TODO - to the caller on when a spurious bit happened.
-            printf("Spurious start bit!\n");
+            //printf("Spurious start bit!\n");
             state->sm = USART_SM_IDLE;
         }
     } else if (state->bit_frac_cnt == state->bit_width) {

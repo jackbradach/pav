@@ -1,0 +1,33 @@
+#ifndef _PAV_H_
+#define _PAV_H_
+
+#include <stdbool.h>
+#include <limits.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+enum pav_op {
+    PAV_OP_INVALID = 0,
+    PAV_OP_CONVERT,
+    PAV_OP_DECODE,
+    PAV_OP_DISPLAY,
+    PAV_OP_VERSION
+};
+
+struct pav_opts {
+        FILE *fin;
+        FILE *fout;
+        char fin_name[NAME_MAX];
+        char fout_name[NAME_MAX];
+        enum pav_op op;
+        bool verbose;
+};
+
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

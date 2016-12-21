@@ -62,21 +62,21 @@ enum cap_types {
     CAP_TYPE_DIGITAL
 };
 
-struct cap_base {
-    TAILQ_ENTRY(cap_base) entry;
-    char *note;
+struct cap {
+    TAILQ_ENTRY(cap) entry;
+    char *note[64];
     uint64_t nsamples;
     uint8_t physical_ch;
     float period;
     enum cap_types type;
     struct refcnt rcnt;
 };
-TAILQ_HEAD(cap_list, cap_base);
-typedef struct cap_base cap_base_t;
+TAILQ_HEAD(cap_list, cap);
+typedef struct cap cap_t;
 
 
 struct cap_analog {
-    cap_base_t super;
+    cap_t super;
 
     /* Analog-specific fields */
     struct adc_cal *cal;
@@ -98,7 +98,7 @@ struct cap_analog {
 // TODO - 2016/12/17 - jbradach - only using one-bit of sample, should
 // TODO - maybe pack them in and have a 'getsample' function?
 struct cap_digital {
-    cap_base_t super;
+    cap_t super;
 
     /* Digital-specific fields */
     uint8_t *samples;
@@ -108,9 +108,9 @@ struct cap_digital {
 struct cap_bundle {
     struct refcnt rcnt;
     struct cap_list *caps;
-    void (*add)(struct cap_bundle *bundle, cap_base_t *cap);
-    void (*remove)(struct cap_bundle *bundle, cap_base_t *cap);
-    cap_base_t *(*get)(struct cap_bundle *bundle, unsigned idx);
+    void (*add)(struct cap_bundle *bundle, cap_t *cap);
+    void (*remove)(struct cap_bundle *bundle, cap_t *cap);
+    cap_t *(*get)(struct cap_bundle *bundle, unsigned idx);
     unsigned (*len)(struct cap_bundle *bundle);
 };
 
@@ -124,25 +124,28 @@ void cap_set_analog_minmax(struct cap_analog *acap);
 /* Digital Capture Utilities */
 void cap_digital_ch_copy(struct cap_digital *dcap, uint8_t from, uint32_t to);
 
-/* Capture structure allocation */
+/* Capture lifecycle functions */
 struct cap_analog *cap_analog_create(void);
-struct cap_bundle *cap_bundle_create(void);
 struct cap_digital *cap_digital_create(void);
+cap_t *cap_addref(cap_t *cap);
+void cap_dropref(cap_t *cap);
+unsigned cap_getref(cap_t *cap);
+
+/* Bundle lifecycle functions */
+struct cap_bundle *cap_bundle_create(void);
+struct cap_bundle *cap_bundle_addref(struct cap_bundle *cap);
+void cap_bundle_dropref(struct cap_bundle *cap);
+unsigned cap_bundle_getref(struct cap_bundle *cap);
+
+void cap_bundle_add(struct cap_bundle *bundle, cap_t *cap);
+void cap_bundle_remove(struct cap_bundle *bundle, cap_t *cap);
+cap_t *cap_bundle_get(struct cap_bundle *bundle, unsigned idx);
+unsigned cap_bundle_len(struct cap_bundle *bundle);
 
 void cap_analog_set_cal(struct cap_analog *acap, struct adc_cal *cal);
 
-/* Capture structure manipulation */
-cap_base_t *cap_addref(cap_base_t *cap);
-void cap_dropref(cap_base_t *cap);
-unsigned cap_getref(cap_base_t *cap);
-void cap_destroy(cap_base_t *cap);
-void cap_bundle_destroy(struct cap_bundle *bundle);
 
-/* List operations to add / remove captures to the bundle list. */
-void cap_bundle_add(struct cap_bundle *bundle, cap_base_t *cap);
-void cap_bundle_remove(struct cap_bundle *bundle, cap_base_t *cap);
-cap_base_t *cap_bundle_get(struct cap_bundle *bundle, unsigned idx);
-unsigned cap_bundle_len(struct cap_bundle *bundle);
+
 
 
 

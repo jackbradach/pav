@@ -5,6 +5,8 @@
 #include "saleae.h"
 #include "queue.h"
 
+#define SAMPLE_DIR "bin/"
+
 TEST(PaUsartTest, FunctionalDigital) {
     pa_usart_ctx_t *usart_ctx;
 
@@ -19,7 +21,7 @@ TEST(PaUsartTest, FunctionalDigital) {
 
     /* Map sample file into memory */
     // XXX - need to convert these to test fixtures!
-    rc = saleae_import_digital("bin/uart_digital_115200_500mHz.bin", sizeof(uint32_t), 500.0E6, &dcap);
+    rc = saleae_import_digital(SAMPLE_DIR "uart_digital_115200_500mHz.bin", sizeof(uint32_t), 500.0E6, &dcap);
     ASSERT_EQ(rc, 0);
 
     pa_usart_ctx_set_freq(usart_ctx, 500.0E6);
@@ -52,9 +54,9 @@ TEST(PaUsartTest, FunctionalAnalog) {
 
     /* Map sample file into memory */
     // XXX - need to convert these to test fixtures!
-    saleae_import_analog("bin/uart_analog_115200_50mHz.bin", &bun);
+    saleae_import_analog(SAMPLE_DIR "uart_analog_115200_50mHz.bin", &bun);
 
-    acap = (cap_analog *) TAILQ_FIRST(bun->caps);
+    acap = (struct cap_analog *) TAILQ_FIRST(bun->caps);
 
     pa_usart_ctx_set_freq(usart_ctx, 50.0E6);
 

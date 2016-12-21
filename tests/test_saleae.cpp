@@ -4,16 +4,18 @@
 #include "saleae.h"
 #include "queue.h"
 
+#define SAMPLE_DIR "bin/"
+
 TEST(SaleaeTest, ImportAnalogCapture) {
     /* "Gold" values are the parameters from the uart capture */
-    const char test_file[] = "bin/uart_analog_115200_50mHz.bin";
+    const char test_file[] = SAMPLE_DIR "uart_analog_115200_50mHz.bin";
     const unsigned gold_nsamples = 116176;
     const unsigned gold_ncaps = 1;
     const unsigned gold_physical_ch = 0;
     const float gold_period = 2.0E-08;
 
     struct cap_bundle *bun;
-    cap_base_t *cur;
+    cap_t *cur;
     unsigned cap_count = 0;
 
     saleae_import_analog(test_file, &bun);

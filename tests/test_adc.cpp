@@ -20,7 +20,6 @@ TEST(AdcTest, SampleToVoltage) {
     for (uint16_t sample = 0; sample < smax; sample++) {
         static float last_v = -INFINITY;
         v = adc_sample_to_voltage(sample, &cal);
-        printf("last_v: %f v: %f\n", last_v, v);
         ASSERT_TRUE(v > last_v);
         last_v = v;
     }

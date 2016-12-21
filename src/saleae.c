@@ -18,17 +18,7 @@ struct __attribute__((__packed__)) saleae_analog_header {
 
 /* Local prototypes */
 static int mmap_file(const char *filename, void **buf, size_t *length);
-static void saleae_print_analog_header(struct saleae_analog_header *hdr);
 static void cap_import_channel(void *abuf, unsigned ch, uint16_t *samples_out);
-
-static void saleae_print_analog_header(struct saleae_analog_header *hdr)
-{
-    printf("Saleae Analog Capture File\n");
-    printf("--------------------------\n");
-    printf("Total samples: %lu\n", hdr->sample_total);
-    printf("Channel count: %u\n", hdr->channel_count);
-    printf("Sample period: %.02e\n", hdr->sample_period);
-}
 
 void saleae_import_analog(const char *src_file, struct cap_bundle **new_bundle)
 {
@@ -37,6 +27,10 @@ void saleae_import_analog(const char *src_file, struct cap_bundle **new_bundle)
     struct cap_bundle *bun;
     struct saleae_analog_header *hdr;
     int rc;
+    char *cwd;
+    //cwd = get_current_dir_name();
+//    printf("dir: %s\n", cwd);
+//    free(cwd);
 
     rc = mmap_file(src_file, &abuf, &abuf_len);
     if (rc == -ENOENT) {
@@ -46,15 +40,13 @@ void saleae_import_analog(const char *src_file, struct cap_bundle **new_bundle)
     }
 
     hdr = (struct saleae_analog_header *) abuf;
-    saleae_print_analog_header(hdr);
-
     assert(hdr->channel_count > 0 && hdr->channel_count <= 16);
 
     bun = cap_bundle_create();
 
     for (uint16_t ch = 0; ch < hdr->channel_count; ch++) {
         struct cap_analog *acap = cap_analog_create();
-        struct cap_base *cap = &acap->super;
+        struct cap *cap = &acap->super;
         cap->nsamples = hdr->sample_total;
         cap->physical_ch = ch;
         cap->period = hdr->sample_period;
@@ -92,13 +84,11 @@ static void cap_import_channel(void *abuf, unsigned ch, uint16_t *samples_out)
      }
 }
 
-#if 0
-
-int saleae_import_digital(const char *cap_file, size_t sample_width, float freq, struct cap_digital **new_dcap)
+int saleae_import_digital(const char *cap_file, size_t sample_width, float freq, struct cap_digital **dcap)
 {
     void *dbuf;
     size_t dbuf_len;
-    struct cap_digital *dcap;
+    struct cap_digital *d;
     int rc;
 
     rc = mmap_file(cap_file, &dbuf, &dbuf_len);
@@ -107,18 +97,17 @@ int saleae_import_digital(const char *cap_file, size_t sample_width, float freq,
         return -1;
     }
 
-    dcap = calloc(1, sizeof(struct cap_digital));
-    dcap->samples = calloc(dbuf_len, sizeof(uint32_t));
-    dcap->nsamples = dbuf_len / sample_width;
-    dcap->period = 1.0f/freq;
+    d = calloc(1, sizeof(struct cap_digital));
+    d->samples = calloc(dbuf_len, sizeof(uint32_t));
+    d->super.nsamples = dbuf_len / sample_width;
+    d->super.period = 1.0f/freq;
 
-    memcpy(dcap->samples, dbuf, dbuf_len);
+    memcpy(d->samples, dbuf, dbuf_len);
     munmap(dbuf, dbuf_len);
-    *new_dcap = dcap;
+    *dcap = d;
 
     return 0;
 }
-#endif
 
 /* Function: mmap_file
  *

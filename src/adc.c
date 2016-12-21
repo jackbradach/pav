@@ -82,7 +82,7 @@ void adc_acap(struct cap_analog *acap, uint16_t v_lo, uint16_t v_hi)
     // TODO - handle) and creating a new one.  This'll make copying them around
     // TODO - less of a headache.
     if (acap->dcap)
-        cap_dropref((cap_base_t *) acap->dcap);
+        cap_dropref((cap_t *) acap->dcap);
 
     dcap = cap_digital_create();
 

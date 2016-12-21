@@ -1,3 +1,7 @@
+find_package(PLplot REQUIRED)
+include_directories(${PLplot_INCLUDE_DIR})
+set(LIBS ${LIBS} ${PLplot_cxx_LIBRARY})
+
 # Source containing 'main()'
 set(SRC_MAIN
     pav.c
@@ -10,6 +14,9 @@ set(SRC_LIBRARY
     cap.c
     pa_spi.c
     pa_usart.c
+    pav_argp.c
+    plot.c
+    proto.c
     saleae.c
     sstreamer.c
 )
@@ -19,4 +26,4 @@ set(BINARY_NAME pav)
 
 add_library(${LIBRARY_NAME} STATIC ${SRC_LIBRARY})
 add_executable(${BINARY_NAME} ${SRC_MAIN})
-target_link_libraries(${BINARY_NAME} ${LIBRARY_NAME})
+target_link_libraries(${BINARY_NAME} ${LIBRARY_NAME} ${LIBS})

@@ -10,15 +10,17 @@
 
 // PLPLOT
 #include "plplot/plplot.h"
-
 #include "cairo/cairo.h"
+
+#include "plot.h"
+
+
 
 #define PLOT_LABEL_MAXLEN 64
 
-struct plot_data {
-    float *x, *y;
-    float xmin, xmax;
-    float ymin, ymax;
+struct plot {
+    double *x, *y;
+    double ymin, ymax;
     unsigned long len;
     char xlabel[PLOT_LABEL_MAXLEN];
     char ylabel[PLOT_LABEL_MAXLEN];
@@ -26,35 +28,111 @@ struct plot_data {
     struct refcnt rcnt;
 };
 
-static void plot_data_free(const struct refcnt *ref);
+static void plot_free(const struct refcnt *ref);
+static void plot_from_acap(struct cap_analog *acap, uint64_t idx_begin, uint64_t idx_end, struct plot **plot);
 
-void plot_data_from_acap(struct cap_analog *acap, struct plot_data **new_plot)
+void plot_from_cap(cap_t *cap, int64_t idx_begin, uint64_t idx_end, struct plot **plot)
 {
-    // extract x / y from acaps
-    // call plot_data create
+    plot_from_acap((struct cap_analog *) cap, idx_begin, idx_end, plot);
 }
 
-/* Function: plot_data_create
+static void plot_from_acap(struct cap_analog *acap, uint64_t idx_begin, uint64_t idx_end, struct plot **plot)
+{
+    struct plot *p;
+    p = plot_create();
+
+    /* Set the y-axis scales to the voltage range */
+    p->ymin = adc_sample_to_voltage(acap->sample_min, acap->cal);
+    p->ymax = adc_sample_to_voltage(acap->sample_max, acap->cal);
+    p->len = idx_end - idx_begin;
+
+    p->x = calloc(p->len, sizeof(double));
+    p->y = calloc(p->len, sizeof(double));
+
+    // extract x / y from acaps
+    for (uint64_t i = idx_begin, j = 0; i < idx_end; i++, j++) {
+        // FIXME: the array needs to start at zero even if the indices do not!
+        p->x[j] = (idx_begin + j);
+        p->y[j] = adc_sample_to_voltage(acap->samples[i], acap->cal);
+    }
+
+    // call plot create
+    *plot = p;
+}
+
+void plot_to_wxwidgets(struct plot *p)
+{
+    plsdev("wxwidgets");
+    plinit();
+    plenv(p->x[0], p->x[p->len - 1], p->ymin, p->ymax + (p->ymax / 10), 0, 0);
+    pllab(p->xlabel, p->ylabel, p->title);
+    plcol0(3);
+    plline(p->len, (PLFLT *) p->x, (PLFLT *) p->y);
+    plend();
+}
+
+void plot_to_cairo_surface(struct plot *p, cairo_surface_t *cs)
+{
+    cairo_t *c;
+    int w, h;
+
+    c = cairo_create(cs);
+    w = cairo_image_surface_get_width(cs);
+    h = cairo_image_surface_get_height(cs);
+
+    cairo_scale(c, w, h);
+    cairo_set_source_rgba(c, 1, 0.2, 0.2, 0.6);
+    cairo_fill(c);
+
+    plsdev("extcairo");
+    plinit();
+    pl_cmd(PLESC_DEVINIT, c);
+    plenv(p->x[0], p->x[p->len - 1], p->ymin, p->ymax + (p->ymax / 10), 0, 0);
+    pllab(p->xlabel, p->ylabel, p->title);
+    plcol0(3);
+    plline(p->len, (PLFLT *) p->x, (PLFLT *) p->y);
+    plend();
+    cairo_destroy(c);
+}
+
+/* Function: plot_create
  *
  * Allocates and initializes a new plot structure
  *
- * Parameters:
- *  dcap - pointer to uninitialized handle for an digital capture structure
- *
- * See Also:
- *  <plot_data_destroy>, <plot_data_set_title>
  */
-void plot_data_create(struct plot_data **new_plot)
+struct plot *plot_create(void)
 {
-    struct plot_data *p;
+    struct plot *p;
 
-    p = calloc(1, sizeof(struct plot_data));
-    p->rcnt = (struct refcnt) { plot_data_free, 1 };
+    p = calloc(1, sizeof(struct plot));
+    p->rcnt = (struct refcnt) { plot_free, 1 };
 
-    *new_plot = p;
+    return p;
 }
 
-/* Function: plot_data_destroy
+/* Function: plot_addref
+ *
+ * Adds a reference to a plot_t, returning a pointer to the caller.
+ *
+ * Parameters:
+ *  p - existing plot_t structure
+ *
+ * Returns:
+ *  pointer to capture structure for caller
+ *
+ * See Also:
+ *  <plot_dropref>
+ */
+struct plot *plot_addref(struct plot *p)
+{
+    if (NULL == p)
+        return NULL;
+
+    refcnt_inc(&p->rcnt);
+    return p;
+}
+
+/* Function: plot_dropref
  *
  * Mark an plot data structure as no longer used; if no otherwise
  * references are held to the structure, it'll be cleaned up and the
@@ -63,18 +141,41 @@ void plot_data_create(struct plot_data **new_plot)
  * Parameters:
  *  p - handle to an plot structure
  */
-void plot_data_destroy(struct plot_data *p)
+void plot_dropref(struct plot *p)
 {
-    assert(NULL != p);
+    if (NULL == p)
+        return;
     refcnt_dec(&p->rcnt);
 }
 
-static void plot_data_free(const struct refcnt *ref)
+/* Function: plot_getref
+ *
+ * Returns the number of active references on a plot_t
+ *
+ * Parameters:
+ *  p - pointer to a plot_t
+ *
+ * Returns:
+ *  Number of active references
+ *
+ * See Also:
+ *  <plot_addref>, <plot_dropref>
+ */
+unsigned plot_getref(struct plot *p)
 {
-    struct plot_data *p =
-        container_of(ref, struct plot_data, rcnt);
+    if (NULL == p)
+        return 0;
+    return p->rcnt.count;
+}
 
-    assert(NULL != p);
+
+static void plot_free(const struct refcnt *ref)
+{
+    struct plot *p =
+        container_of(ref, struct plot, rcnt);
+
+    if (NULL == p)
+        return;
 
     if (p->x)
         free(p->x);
@@ -85,36 +186,38 @@ static void plot_data_free(const struct refcnt *ref)
     free(p);
 }
 
-void plot_data_set_xlabel(struct plot_data *p, const char *xlabel)
+void plot_set_xlabel(struct plot *p, const char *xlabel)
 {
     snprintf(p->xlabel, sizeof(p->xlabel), "%s", xlabel);
 }
 
-void plot_data_set_ylabel(struct plot_data *p, const char *ylabel)
+void plot_set_ylabel(struct plot *p, const char *ylabel)
 {
     snprintf(p->ylabel, sizeof(p->ylabel), "%s", ylabel);
 }
 
-void plot_data_set_title(struct plot_data *p, const char *title)
+void plot_set_title(struct plot *p, const char *title)
 {
     snprintf(p->title, sizeof(p->title), "%s", title);
 }
 
-const char *plot_data_get_ylabel(struct plot_data *p)
+const char *plot_get_ylabel(struct plot *p)
 {
     return p->ylabel;
 }
 
-const char *plot_data_get_xlabel(struct plot_data *p)
+const char *plot_get_xlabel(struct plot *p)
 {
     return p->xlabel;
 }
 
-const char *plot_data_get_title(struct plot_data *p)
+const char *plot_get_title(struct plot *p)
 {
     return p->title;
 }
 
+
+#if 0
 void plot_analog_cap_sdl(SDL_Texture *texture, struct cap_analog *acap, unsigned idx_start, unsigned idx_end);
 void plot_analog_cap_cairo(cairo_surface_t *surface, struct cap_analog *acap, unsigned idx_start, unsigned idx_end);
 
@@ -154,6 +257,8 @@ void plot_analog_cap(struct cap_analog *acap, unsigned idx_start, unsigned idx_e
     free(x);
     free(y);
 }
+#endif
+
 
 #if 0
 
@@ -252,4 +357,5 @@ void plot_analog_cap_cairo(cairo_surface_t *surface, struct cap_analog *acap, un
     free(y);
     //cairo_destroy(cairo);
 }
+
 #endif
