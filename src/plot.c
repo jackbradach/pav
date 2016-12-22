@@ -87,19 +87,23 @@ void plot_to_cairo_surface(struct plot *p, cairo_surface_t *cs)
     w = cairo_image_surface_get_width(cs);
     h = cairo_image_surface_get_height(cs);
 
-    cairo_scale(c, w, h);
-    cairo_set_source_rgba(c, 1, 0.2, 0.2, 0.6);
+//    cairo_scale(c, w, h);
+    cairo_set_source_rgba(c, 0, 0, 0, 1.0);
     cairo_fill(c);
+    cairo_paint(c);
 
     plsdev("extcairo");
+    plsetopt("drvopt", "rasterize_image");
+    //plsdev("wxwidgets");
     plinit();
     pl_cmd(PLESC_DEVINIT, c);
     plenv(p->x[0], p->x[p->len - 1], p->ymin, p->ymax + (p->ymax / 10), 0, 0);
-    pllab(p->xlabel, p->ylabel, p->title);
+//    pllab(p->xlabel, p->ylabel, p->title);
     plcol0(3);
     plline(p->len, (PLFLT *) p->x, (PLFLT *) p->y);
     plend();
-    cairo_destroy(c);
+    cairo_surface_flush(cs);
+//    cairo_destroy(c);
 }
 
 /* Function: plot_create

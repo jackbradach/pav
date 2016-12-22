@@ -31,47 +31,14 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "pa_spi.h"
 #include "pa_usart.h"
-#include "adc.h"
 #include "cap.h"
-#include "gui.h"
 #include "saleae.h"
-#include "sstreamer.h"
 #include "plot.h"
 
 #include "pav.h"
 
 extern void parse_cmdline(int argc, char *argv[], struct pav_opts *opts);
-
-#if 0
-void test_gui(gui_ctx_t *gui)
-{
-    clock_t ts_start, ts_end;
-    double elapsed;
-    struct cap_bundle *bun;
-    struct cap_analog *acap;
-    int rc;
-
-    uint64_t sample_count = 0;
-    uint64_t decode_count = 0;
-
-    saleae_import_analog("bin/uart_analog_115200_50mHz.bin", &bun);
-
-    // XXX - Testing!
-    acap = (struct cap_analog *) TAILQ_FIRST(bun->caps);
-
-    ts_start = clock();
-
-    plot_analog_cap_gui(gui, acap, 10000, 20000);
-
-    gui_draw(gui);
-    ts_end = clock();
-    elapsed = (double)(ts_end - ts_start) / CLOCKS_PER_SEC;
-    printf("Real Time: %f seconds\n", elapsed);
-    cap_bundle_dropref(bun);
-}
-#endif
 
 /* Imports an analog capture file, runs it through the decoder, and
  * spits out the results in a table.
@@ -98,6 +65,25 @@ void do_usart_decode(struct pav_opts *opts)
     pa_usart_ctx_cleanup(usart);
 }
 
+void do_plot_capture_to_png(struct pav_opts *opts)
+{
+    cairo_surface_t *cs;
+    cap_bundle_t *bun;
+    cap_t *cap;
+    plot_t *pl;
+
+    /* Import capture and plot to a Cairo surface*/
+    saleae_import_analog(opts->fin, &bun);
+    cap = cap_bundle_first(bun);
+    plot_from_cap(cap, 0, cap_get_nsamples(cap), &pl);
+
+    cs = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 640, 480);
+    plot_to_cairo_surface(pl, cs);
+
+    cairo_surface_write_to_png(cs, "test.png");
+    cairo_surface_destroy(cs);
+}
+
 int main(int argc, char *argv[])
 {
     struct pav_opts opts;
@@ -107,11 +93,18 @@ int main(int argc, char *argv[])
 
     parse_cmdline(argc, argv, &opts);
 
-
     switch (opts.op) {
         case PAV_OP_DECODE:
             do_usart_decode(&opts);
             break;
+
+        case PAV_OP_PLOTPNG:
+            do_plot_capture_to_png(&opts);
+            break;
+
+        case PAV_OP_INVALID:
+        default:
+            return EXIT_FAILURE;
     }
 
     return EXIT_SUCCESS;

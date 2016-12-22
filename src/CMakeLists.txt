@@ -1,6 +1,12 @@
+
+
+find_package(Cairo REQUIRED)
+include_directories(${CAIRO_INCLUDE_DIRS})
+set(LIBS ${LIBS} ${CAIRO_LIBRARIES})
+
 find_package(PLplot REQUIRED)
 include_directories(${PLplot_INCLUDE_DIR})
-set(LIBS ${LIBS} ${PLplot_cxx_LIBRARY})
+set(LIBS ${LIBS} ${PLplot_wxwidgets_LIBRARY} ${PLplot_LIBRARY})
 
 find_package(ZLIB REQUIRED)
 include_directories(${ZLIB_INCLUDE_DIRS})

@@ -10,20 +10,19 @@ extern "C" {
 
 enum pav_op {
     PAV_OP_INVALID = 0,
-    PAV_OP_CONVERT,
     PAV_OP_DECODE,
-    PAV_OP_DISPLAY,
+    PAV_OP_PLOTPNG,
     PAV_OP_VERSION
 };
 
 struct pav_opts {
-        FILE *fin;
-        FILE *fout;
-        char fin_name[64];
-        char fout_name[64];
-        enum pav_op op;
-        unsigned loops;
-        bool verbose;
+    FILE *fin;
+    FILE *fout;
+    char fin_name[64];
+    char fout_name[64];
+    enum pav_op op;
+    unsigned loops;
+    bool verbose;
 };
 
 

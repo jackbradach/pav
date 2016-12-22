@@ -19,6 +19,7 @@ static bool opts_valid(struct pav_opts *opts);
 enum opt_keys {
         OPT_KEY_INVALID = 1,
         OPT_KEY_DECODE,
+        OPT_KEY_PLOTPNG,
         OPT_KEY_VERSION = 'V',
         OPT_KEY_VERBOSE = 'v',
         OPT_KEY_IN_FILENAME = 'i',
@@ -36,6 +37,7 @@ static struct argp_option options[] =
 {
     {0, 0, 0, OPTION_DOC, "Commands:", OPT_GROUP_COMMAND},
     {"decode", OPT_KEY_DECODE, 0, 0, "Decode a USART capture"},
+    {"plotpng", OPT_KEY_PLOTPNG, 0, 0, "Plot an analog capture to a PNG"},
 
 //    {0, 0, 0, OPTION_DOC, "Requireds:", OPT_GROUP_REQUIRED},
 
@@ -66,6 +68,7 @@ static void set_defaults(struct pav_opts *opts)
 
         opts->fin = NULL;
         opts->fout = NULL;
+        opts->loops = 1;
 
         /* Is the capture file being piped in? */
         if (!isatty(fileno(stdin)))
@@ -74,7 +77,7 @@ static void set_defaults(struct pav_opts *opts)
         /* Should we pipe out the results? */
         if (!isatty(fileno(stdout))) {
                 opts->fout = stdout;
-                freopen(NULL, "wb", stdout);
+                stdout = freopen(NULL, "wb", stdout);
         }
 }
 
@@ -86,6 +89,14 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 
     case OPT_KEY_VERSION:
         set_op(state, PAV_OP_VERSION);
+        break;
+
+    case OPT_KEY_DECODE:
+        set_op(state, PAV_OP_DECODE);
+        break;
+
+    case OPT_KEY_PLOTPNG:
+        set_op(state, PAV_OP_PLOTPNG);
         break;
 
     case OPT_KEY_VERBOSE:
@@ -148,16 +159,16 @@ static bool opts_valid(struct pav_opts *opts)
 
     /* If input is a pipe (eg, stdin), reopen it as binary. */
     if (stdin == opts->fin) {
-        freopen(NULL, "rb", stdin);
+        stdin = freopen(NULL, "rb", stdin);
     }
 
     if (!opts->fout) {
         opts->fout = stdout;
     }
 
-    /* Default is decode for now */
     if (PAV_OP_INVALID == opts->op) {
-        opts->op = PAV_OP_DECODE;
+        fprintf(stderr, "No command selected;  Pick one!\n");
+        return false;
     }
 
     return true;
@@ -171,7 +182,6 @@ static void set_op(struct argp_state *state, enum pav_op mode)
         fprintf(stderr, "Multiple commands specified;  Pick one!\n");
         argp_usage(state);
     }
-    printf("mode: %d\n", mode);
 
     opts->op = mode;
 }
