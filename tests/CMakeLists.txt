@@ -44,14 +44,6 @@ add_executable(${CMAKE_PROJECT_NAME}_tests EXCLUDE_FROM_ALL ${TEST_SRCS})
 add_dependencies(check ${CMAKE_PROJECT_NAME}_tests)
 target_link_libraries(${CMAKE_PROJECT_NAME}_tests ${GTEST_BOTH_LIBRARIES} protoval ${LIBS})
 
-if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
-    setup_target_for_coverage(coverage
-        "${CMAKE_CTEST_COMMAND}"
-        cov
-    )
-endif()
-
-
 add_custom_command(
     TARGET ${CMAKE_PROJECT_NAME}_tests
     PRE_BUILD
@@ -61,6 +53,17 @@ add_custom_command(
 )
 
 add_test(NAME AnalogDecode
-    COMMAND "pav" "${CMAKE_BINARY_DIR}/tests/uart_analog_115200_50mHz.bin.gz"
+    COMMAND pav -c100 --decode ${CMAKE_BINARY_DIR}/tests/uart_analog_115200_50mHz.bin.gz
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
+
+add_dependencies(check ${CMAKE_PROJECT_NAME} ${CMAKE_PROJECT_NAME}_tests)
+
+# Create a 'coverage' target and make sure it builds the binaries!
+if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
+    setup_target_for_coverage(coverage
+        "${CMAKE_CTEST_COMMAND}"
+        cov
+    )
+    add_dependencies(coverage check)
+endif()
