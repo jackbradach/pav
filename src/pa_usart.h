@@ -81,6 +81,11 @@ void pa_usart_decode_chunk(pa_usart_ctx_t *ctx, cap_t *cap);
 uint64_t pa_usart_get_decoded(struct pa_usart_ctx *ctx, char **out);
 void pa_usart_get_decoded_range(pa_usart_ctx_t *ctx, uint64_t start, uint64_t end, char **out);
 
+void pa_usart_set_desc(struct pa_usart_ctx *c, const char *s);
+const char *pa_usart_get_desc(struct pa_usart_ctx *c);
+
+void pa_usart_fprint_report(FILE *fp, pa_usart_ctx_t *ctx);
+void pa_usart_fprint_hdr(FILE *fp, pa_usart_ctx_t *ctx);
 
 #ifdef __cplusplus
 }

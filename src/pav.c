@@ -73,7 +73,7 @@ void test_gui(gui_ctx_t *gui)
 }
 #endif
 
-void do_decode(struct pav_opts *opts)
+void do_usart_decode(struct pav_opts *opts)
 {
     // open file w/gzip
     // run through decoder
@@ -85,21 +85,18 @@ void do_decode(struct pav_opts *opts)
     cap_bundle_t *bun;
     cap_t *cap;
 
-    saleae_import_analog(opts->fin_name, &bun);
-
     pa_usart_ctx_init(&usart);
     pa_usart_ctx_map_data(usart, 0);
-
-#if 0
-    saleae_import_analog(SAMPLE_DIR "uart_analog_115200_50mHz.bin", &bun);
+    pa_usart_set_desc(usart, opts->fin_name);
+    saleae_import_analog_new(opts->fin, &bun);
     pa_usart_ctx_set_freq(usart, 50.0E6);
 
     cap = cap_bundle_first(bun);
     pa_usart_decode_chunk(usart, cap);
 
     decode_cnt = pa_usart_get_decoded(usart, &usart_recv);
-#endif
 
+    pa_usart_fprint_report(opts->fout, usart);
     free(usart_recv);
     pa_usart_ctx_cleanup(usart);
 }
@@ -112,12 +109,11 @@ int main(int argc, char *argv[])
     setlocale(LC_NUMERIC, "");
 
     parse_cmdline(argc, argv, &opts);
-//    if (stdin == opts.fin)
-//        freopen(NULL, "rb", stdin);
+
 
     switch (opts.op) {
         case PAV_OP_DECODE:
-            do_decode(&opts);
+            do_usart_decode(&opts);
             break;
     }
 

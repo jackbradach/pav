@@ -18,7 +18,40 @@ struct __attribute__((__packed__)) saleae_analog_header {
 
 /* Local prototypes */
 static int mmap_file(const char *filename, void **buf, size_t *length);
+static void mmap_file_new(FILE *fp, void **buf, size_t *length);
 static void import_analog_channel(void *abuf, unsigned ch, cap_analog_t *acap);
+
+void saleae_import_analog_new(FILE *fp, struct cap_bundle **new_bundle)
+{
+    void *abuf;
+    size_t abuf_len;
+    struct cap_bundle *bun;
+    struct saleae_analog_header *hdr;
+
+    mmap_file_new(fp, &abuf, &abuf_len);
+
+    hdr = (struct saleae_analog_header *) abuf;
+    assert(hdr->channel_count > 0 && hdr->channel_count <= 16);
+
+    bun = cap_bundle_create();
+
+    for (uint16_t ch = 0; ch < hdr->channel_count; ch++) {
+        cap_analog_t *acap = cap_analog_create(hdr->sample_total);
+        cap_set_physical_ch((cap_t *) acap, ch);
+        cap_set_period((cap_t *) acap, hdr->sample_period);
+        import_analog_channel(abuf, ch, acap);
+        cap_set_analog_minmax(acap);
+
+        /* Make a digital version of the analog capture */
+        adc_acap_ttl(acap);
+        cap_bundle_add(bun, (cap_t *) acap);
+    }
+
+    /* Unmap the capture file. */
+    munmap(abuf, abuf_len);
+
+    *new_bundle = bun;
+}
 
 void saleae_import_analog(const char *src_file, struct cap_bundle **new_bundle)
 {
@@ -128,4 +161,15 @@ static int mmap_file(const char *filename, void **buf, size_t *len)
     *buf = addr;
 
     return 0;
+}
+
+static void mmap_file_new(FILE *fp, void **buf, size_t *len)
+{
+    struct stat st;
+    void *addr;
+
+    fstat(fileno(fp), &st);
+    addr = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fileno(fp), 0);
+    *len = st.st_size;
+    *buf = addr;
 }

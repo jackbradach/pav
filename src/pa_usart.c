@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 
 #include <unistd.h>
@@ -35,7 +36,7 @@
 #define DEFAULT_STOP_BITS USART_STOP_BITS_ONE
 
 #define MAX_SAMPLE_WIDTH 32
-
+#define MAX_DESC_LEN 64
 #define USART_FLAG_MASK (SPI_FLAG_CPOL | SPI_FLAG_CPHA | SPI_FLAG_ENDIANESS | SPI_FLAG_CS_POLARITY)
 
 
@@ -93,6 +94,7 @@ struct pa_usart_ctx {
     struct pa_usart_state *state;
     uint64_t sample_cnt;
     uint64_t decode_cnt;
+    char *desc;
 };
 
 static inline uint8_t unswizzle_sample(struct pa_usart_ctx *ctx, uint32_t sample);
@@ -499,4 +501,117 @@ uint64_t pa_usart_get_decoded(struct pa_usart_ctx *ctx, char **out)
     *out = d;
 
     return ctx->decode_cnt;
+}
+
+static void fprintf_linebreak(FILE *fp, int n, const char c)
+{
+    for (int i = 0; i < n; i++) {
+        fputc(c, fp);
+    }
+    fputc('\n', fp);
+}
+
+static void fprintf_center(FILE *fp, size_t n, const char *s)
+{
+    size_t len = strlen(s);
+    unsigned midpoint = (n - len) / 2;
+    for (int i = 0; i <= midpoint; i++) {
+        fputs(" ", fp);
+    }
+    fputs(s, fp);
+}
+
+static void fprintf_indent(FILE *fp, size_t n, const char *s)
+{
+    for (int i = 0; i < n; i++) {
+        fputs(" ", fp);
+    }
+    fputs(s, fp);
+}
+
+
+void fprint_symbols(FILE *fp, struct pa_usart_ctx *ctx, size_t wout, size_t tab)
+{
+    char tmpstr[wout + 1];
+    char *symbols;
+    uint64_t nsymbols;
+    uint64_t i = 0;
+
+    fprintf_linebreak(fp, wout, '-');
+    fprintf_center(fp, wout, "[ Symbols Received ]\n");
+    snprintf(tmpstr, wout, "< %s >\n", pa_usart_get_desc(ctx));
+    nsymbols = pa_usart_get_decoded(ctx, &symbols);
+
+    while (i < nsymbols) {
+        for (int col = 0; col < wout; col++) {
+            if (col < tab) {
+                fputc(' ', fp);
+                continue;
+            } else {
+                fputc(symbols[i], fp);
+            }
+            if (i++ == nsymbols)
+                break;
+        }
+        fputc('\n', fp);
+    }
+    fprintf_linebreak(fp, wout, '-');
+
+    free(symbols);
+}
+
+
+void pa_usart_fprint_report(FILE *fp, struct pa_usart_ctx *ctx)
+{
+    const size_t wout = 64; /* Output width */
+    const size_t tab = 4; /* Tab width */
+    char tmpstr[wout + 1];
+
+    fprintf_linebreak(fp, wout, '=');
+    fprintf_center(fp, wout, "-- USART Decode: 115200 @ 8-N-1 --\n");
+    snprintf(tmpstr, wout, "< %s >\n", pa_usart_get_desc(ctx));
+    fprintf_center(fp, wout, tmpstr);
+
+    fprintf_linebreak(fp, wout, '=');
+    snprintf(tmpstr, wout, "Samples: %lu @ %.02f MS/s\n",
+        ctx->sample_cnt, 1.0E-6 / (ctx->sample_period));
+    fprintf_indent(fp, tab, tmpstr);
+    snprintf(tmpstr, wout, "Symbols Decoded: %lu\n", ctx->decode_cnt);
+    fprintf_indent(fp, tab, tmpstr);
+
+    fprint_symbols(fp, ctx, wout, tab);
+    #if 0
+    fprintf(fp, "\n");
+    fprintf(fp, "\n");
+    fprintf(fp, "\n");
+    fprintf(fp, "\n");
+    fprintf(fp, "\n");
+    fprintf(fp, "\n");
+    fprintf(fp, "\n");
+    fprintf(fp, "\n");
+    fprintf(fp, "\n");
+
+#endif
+    // print timing statistics (add them for ctx)
+}
+
+
+
+void pa_usart_set_desc(struct pa_usart_ctx *c, const char *s)
+{
+    size_t len;
+
+    if (c->desc) {
+        free(c->desc);
+    }
+
+    len = strnlen(s, MAX_DESC_LEN);
+    c->desc = calloc(len, sizeof(char));
+
+    strncpy(c->desc, s, len);
+}
+
+const char *pa_usart_get_desc(struct pa_usart_ctx *c)
+{
+    return c->desc;
 }

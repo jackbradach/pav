@@ -19,8 +19,8 @@ enum pav_op {
 struct pav_opts {
         FILE *fin;
         FILE *fout;
-        char fin_name[NAME_MAX];
-        char fout_name[NAME_MAX];
+        char fin_name[64];
+        char fout_name[64];
         enum pav_op op;
         bool verbose;
 };
