@@ -5,11 +5,11 @@
 #include "pa_usart.h"
 #include "saleae.h"
 
-#define SAMPLE_DIR "bin/"
-
 TEST(PaUsartTest, DISABLED_FunctionalDigital) {
     pa_usart_ctx_t *usart_ctx;
     cap_digital_t *dcap;
+    const char test_file[] = "uart_digital_115200_500mHz.bin.gz";
+    FILE *fp = fopen(test_file, "rb");
     int rc;
 
     /* Init USART decode, all defaults are fine. */
@@ -18,7 +18,7 @@ TEST(PaUsartTest, DISABLED_FunctionalDigital) {
 
     /* Map sample file into memory */
     // XXX - need to convert these to test fixtures!
-    rc = saleae_import_digital(SAMPLE_DIR "uart_digital_115200_500mHz.bin", sizeof(uint32_t), 500.0E6, &dcap);
+    rc = saleae_import_digital(fp, sizeof(uint32_t), 500.0E6, &dcap);
     ASSERT_EQ(rc, 0);
 
     pa_usart_ctx_set_freq(usart_ctx, 500.0E6);
@@ -33,6 +33,7 @@ TEST(PaUsartTest, DISABLED_FunctionalDigital) {
 }
 
 TEST(PaUsartTest, UsartStream) {
+    FILE *fp = fopen("uart_analog_115200_50mHz.bin.gz", "rb");
     pa_usart_ctx_t *usart_ctx;
     cap_bundle_t *bun;
     cap_t *cap;
@@ -42,9 +43,7 @@ TEST(PaUsartTest, UsartStream) {
     pa_usart_ctx_init(&usart_ctx);
     pa_usart_ctx_map_data(usart_ctx, 0);
 
-    /* Map sample file into memory */
-    // XXX - need to convert these to test fixtures!
-    saleae_import_analog(SAMPLE_DIR "uart_analog_115200_50mHz.bin", &bun);
+    saleae_import_analog(fp, &bun);
     pa_usart_ctx_set_freq(usart_ctx, 50.0E6);
 
     cap = cap_bundle_first(bun);
@@ -64,7 +63,7 @@ TEST(PaUsartTest, UsartBlock) {
     TEST_DESC("Tests the USART decoder on a block of samples");
     const char gold_usart_recv[] = "Uart Decode Test PASS!";
     size_t gold_decode_cnt = strlen(gold_usart_recv);
-
+    FILE *fp = fopen("uart_analog_115200_50mHz.bin.gz", "rb");
     char *usart_recv;
     uint64_t decode_cnt;
 
@@ -76,9 +75,7 @@ TEST(PaUsartTest, UsartBlock) {
     pa_usart_ctx_init(&usart);
     pa_usart_ctx_map_data(usart, 0);
 
-    /* Map sample file into memory */
-    // XXX - need to convert these to test fixtures!
-    saleae_import_analog(SAMPLE_DIR "uart_analog_115200_50mHz.bin", &bun);
+    saleae_import_analog(fp, &bun);
     pa_usart_ctx_set_freq(usart, 50.0E6);
 
     cap = cap_bundle_first(bun);
@@ -91,4 +88,5 @@ TEST(PaUsartTest, UsartBlock) {
     free(usart_recv);
     pa_usart_ctx_cleanup(usart);
     pa_usart_reset(usart);
+    fclose(fp);
 }

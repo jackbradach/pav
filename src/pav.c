@@ -88,7 +88,7 @@ void do_usart_decode(struct pav_opts *opts)
     pa_usart_ctx_init(&usart);
     pa_usart_ctx_map_data(usart, 0);
     pa_usart_set_desc(usart, opts->fin_name);
-    saleae_import_analog_new(opts->fin, &bun);
+    saleae_import_analog(opts->fin, &bun);
     pa_usart_ctx_set_freq(usart, 50.0E6);
 
     cap = cap_bundle_first(bun);

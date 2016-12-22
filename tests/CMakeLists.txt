@@ -19,6 +19,7 @@ include_directories(${ZLIB_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${ZLIB_LIBRARIES})
 
 set(TEST_SRCS
+    tests.cpp
     test_adc.cpp
     test_cap.cpp
     test_saleae.cpp
@@ -44,7 +45,10 @@ add_dependencies(check ${CMAKE_PROJECT_NAME}_tests)
 target_link_libraries(${CMAKE_PROJECT_NAME}_tests ${GTEST_BOTH_LIBRARIES} protoval ${LIBS})
 
 if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
-    setup_target_for_coverage(coverage ${CMAKE_PROJECT_NAME}_tests cov)
+    setup_target_for_coverage(coverage
+        "${CMAKE_CTEST_COMMAND}"
+        cov
+    )
 endif()
 
 
@@ -53,5 +57,10 @@ add_custom_command(
     PRE_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/tests/captures/
-            ${EXECUTABLE_OUTPUT_PATH}
+            ${CMAKE_BINARY_DIR}/tests
+)
+
+add_test(NAME AnalogDecode
+    COMMAND "pav" "${CMAKE_BINARY_DIR}/tests/uart_analog_115200_50mHz.bin.gz"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )

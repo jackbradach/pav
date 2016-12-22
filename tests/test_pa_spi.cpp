@@ -4,7 +4,6 @@
 #include "pa_spi.h"
 #include "saleae.h"
 
-#define SAMPLE_DIR "bin/"
 
 TEST(PaSpiTest, Functional) {
     pa_spi_ctx_t *spi_ctx;
@@ -12,6 +11,8 @@ TEST(PaSpiTest, Functional) {
     uint64_t sample_count = 0;
     uint64_t decode_count = 0;
     cap_digital_t *dcap;
+    const char test_file[] = "16ch_quadspi_100mHz.bin.gz";
+    FILE *fp = fopen(test_file, "rb");
     int rc;
 
     /* Init SPI decoder and map physical channels to logical ones */
@@ -24,7 +25,7 @@ TEST(PaSpiTest, Functional) {
 
     /* Map sample file into memory */
     // XXX - need to convert these to text fixtures!
-    rc = saleae_import_digital(SAMPLE_DIR "16ch_quadspi_100mhz.bin", sizeof(uint32_t), 100.0E6, &dcap);
+    rc = saleae_import_digital(fp, sizeof(uint32_t), 100.0E6, &dcap);
     if (rc) {
         printf("rc: %d\n", rc);
     }
@@ -41,7 +42,11 @@ TEST(PaSpiTest, Functional) {
         }
         sample_count++;
     }
-    pa_spi_ctx_cleanup(spi_ctx);
+
     ASSERT_TRUE(decode_count > 0);
     ASSERT_TRUE(sample_count > 0);
+
+    pa_spi_ctx_cleanup(spi_ctx);
+    fclose(fp);
+
 }

@@ -9,7 +9,6 @@
 #include "saleae.h"
 #include "queue.h"
 
-#define SAMPLE_DIR "bin/"
 
 TEST(Plot, PlotLifeCycle) {
     plot_t *p, *p2;
@@ -63,8 +62,11 @@ TEST(Plot, PlotFromAnalogCap) {
     cap_bundle_t *b;
     cap_t *cap;
     plot_t *p;
+    const char test_file[] = "uart_analog_115200_50mHz.bin.gz";
+    FILE *fp = fopen(test_file, "rb");
 
-    saleae_import_analog(SAMPLE_DIR "uart_analog_115200_50mHz.bin", &b);
+    saleae_import_analog(fp, &b);
+
     cap = cap_bundle_first(b);
 
     plot_from_cap(cap, 0, cap_get_nsamples(cap), &p);
@@ -78,8 +80,10 @@ TEST(Plot, DISABLED_PlotToWxwidgets) {
     cap_bundle_t *b;
     cap_t *cap;
     plot_t *p;
+    const char test_file[] = "uart_analog_115200_50mHz.bin.gz";
+    FILE *fp = fopen(test_file, "rb");
 
-    saleae_import_analog(SAMPLE_DIR "uart_analog_115200_50mHz.bin", &b);
+    saleae_import_analog(fp, &b);
     cap = cap_bundle_first(b);
 
     plot_from_cap(cap, 0, cap_get_nsamples(cap), &p);
@@ -95,8 +99,10 @@ TEST(Plot, PlotToCairoSurface) {
     cap_t *cap;
     plot_t *p;
     cairo_surface_t *cs;
+    const char test_file[] = "uart_analog_115200_50mHz.bin.gz";
+    FILE *fp = fopen(test_file, "rb");
 
-    saleae_import_analog(SAMPLE_DIR "uart_analog_115200_50mHz.bin", &b);
+    saleae_import_analog(fp, &b);
     cap = cap_bundle_first(b);
 
     plot_from_cap(cap, 0, cap_get_nsamples(cap), &p);
@@ -107,4 +113,5 @@ TEST(Plot, PlotToCairoSurface) {
 
     plot_dropref(p);
     cairo_surface_destroy(cs);
+    fclose(fp);
 }
