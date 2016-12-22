@@ -14,7 +14,7 @@ TEST(SaleaeTest, ImportAnalogCapture) {
     const unsigned gold_physical_ch = 0;
     const float gold_period = 2.0E-08;
 
-    struct cap_bundle *bun;
+    cap_bundle_t *bun;
     cap_t *cur;
     unsigned cap_count = 0;
 
@@ -22,21 +22,17 @@ TEST(SaleaeTest, ImportAnalogCapture) {
 
     ASSERT_TRUE(NULL != bun);
 
-
-    //ASSERT_TRUE(NULL != bun->acaps);
-    //ASSERT_TRUE(NULL != bun->acaps[0]);
-
-    TAILQ_FOREACH(cur, bun->caps, entry) {
-        struct cap_analog *acap = (struct cap_analog *) cur;
-        ASSERT_EQ(cur->nsamples, gold_nsamples);
-        ASSERT_EQ(cur->physical_ch, gold_physical_ch);
-        ASSERT_EQ(cur->period, gold_period);
-        ASSERT_TRUE(NULL != acap->samples);
+    cur = cap_bundle_first(bun);
+    while (cur) {
+        ASSERT_EQ(cap_get_nsamples(cur), gold_nsamples);
+        ASSERT_EQ(cap_get_physical_ch(cur), gold_physical_ch);
+        ASSERT_EQ(cap_get_period(cur), gold_period);
         cap_count++;
+        cur = cap_next(cur);
     }
     ASSERT_EQ(cap_count, gold_ncaps);
 
-//    cap_bundle_destroy(bun);
+    cap_bundle_dropref(bun);
 }
 
 #if 0

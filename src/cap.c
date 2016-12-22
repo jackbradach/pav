@@ -22,8 +22,49 @@
 #include <assert.h>
 #include <stdint.h>
 
+#include "adc.h"
 #include "cap.h"
 #include "queue.h"
+
+enum cap_types {
+    CAP_TYPE_INVALID = 0,
+    CAP_TYPE_ANALOG,
+    CAP_TYPE_DIGITAL
+};
+
+struct cap {
+    TAILQ_ENTRY(cap) entry;
+    char *note[64];
+    uint64_t nsamples;
+    uint8_t physical_ch;
+    float period;
+    enum cap_types type;
+    struct refcnt rcnt;
+};
+TAILQ_HEAD(cap_list, cap);
+
+struct cap_analog {
+    cap_t super;
+    adc_cal_t *cal;
+    uint16_t sample_min;
+    uint16_t sample_max;
+    uint16_t *samples;
+    cap_digital_t *dcap;
+};
+
+struct cap_digital {
+    cap_t super;
+    uint8_t *samples;
+};
+
+struct cap_bundle {
+    struct refcnt rcnt;
+    struct cap_list head;
+    void (*add)(struct cap_bundle *bundle, cap_t *cap);
+    void (*remove)(struct cap_bundle *bundle, cap_t *cap);
+    cap_t *(*get)(struct cap_bundle *bundle, unsigned idx);
+    unsigned (*len)(struct cap_bundle *bundle);
+};
 
 /* Static prototypes - these get automatically called by
  * the reference counter.
@@ -122,12 +163,14 @@ void cap_set_analog_minmax(struct cap_analog *acap)
  * See Also:
  *  <cap_analog_destroy>
  */
-struct cap_analog *cap_analog_create(void)
+struct cap_analog *cap_analog_create(size_t len)
 {
     struct cap_analog *cap;
     cap = calloc(1, sizeof(struct cap_analog));
     cap->super.rcnt = (struct refcnt) { cap_free, 1 };
     cap->super.type = CAP_TYPE_ANALOG;
+    cap->super.nsamples = len;
+    cap->samples = calloc(len, sizeof(uint16_t));
     return cap;
 }
 
@@ -147,11 +190,21 @@ struct cap_analog *cap_analog_create(void)
  * See Also:
  *  <cap_dropref>
  */
-cap_t *cap_addref(cap_t *cap)
+struct cap *cap_addref(struct cap *cap)
 {
-    if (NULL == cap)
+    if (cap == NULL)
         return NULL;
+
+    /* Make sure to add a ref on any digital sub-caps! */
+    if (CAP_TYPE_ANALOG == cap->type) {
+        struct cap_analog *acap = (struct cap_analog *) cap;
+        if (acap->dcap) {
+            struct cap *dcap = (struct cap*) acap->dcap;
+            refcnt_inc(&dcap->rcnt);
+        }
+    }
     refcnt_inc(&cap->rcnt);
+
     return cap;
 }
 
@@ -169,11 +222,20 @@ cap_t *cap_addref(cap_t *cap)
  * See Also:
  *  <cap_addref>
  */
-void cap_dropref(cap_t *cap)
+void cap_dropref(struct cap *c)
 {
-    if (NULL == cap)
+    if (NULL == c)
         return;
-    refcnt_dec(&cap->rcnt);
+
+    /* Make sure to drop ref on any digital sub-caps! */
+    if (CAP_TYPE_ANALOG == c->type) {
+        struct cap_analog *acap = (struct cap_analog *) c;
+        if (acap->dcap) {
+            struct cap *dcap = (struct cap*) acap->dcap;
+            refcnt_dec(&dcap->rcnt);
+        }
+    }
+    refcnt_dec(&c->rcnt);
 }
 
 /* Function: cap_getref
@@ -249,7 +311,7 @@ static void cap_analog_free(struct cap_analog *acap)
     }
 }
 
-/* Function: cap_digital_create
+/* Function: cap_
  *
  * Allocates and initializes a new digital capture structure.
  *
@@ -259,13 +321,15 @@ static void cap_analog_free(struct cap_analog *acap)
  * See Also:
  *  <cap_digital_destroy>
  */
-struct cap_digital *cap_digital_create(void)
+struct cap_digital *cap_digital_create(size_t len)
 {
-    struct cap_digital *cap;
-    cap = calloc(1, sizeof(struct cap_digital));
-    cap->super.rcnt = (struct refcnt) { cap_free, 1 };
-    cap->super.type = CAP_TYPE_DIGITAL;
-    return cap;
+    struct cap_digital *dcap;
+    dcap = calloc(1, sizeof(struct cap_digital));
+    dcap->super.rcnt = (struct refcnt) { cap_free, 1 };
+    dcap->super.type = CAP_TYPE_DIGITAL;
+    dcap->super.nsamples = len;
+    dcap->samples = calloc(len, sizeof(uint32_t));
+    return dcap;
 }
 
 /* Function: cap_digital_free
@@ -300,8 +364,7 @@ struct cap_bundle *cap_bundle_create(void)
     b->rcnt = (struct refcnt) { cap_bundle_free, 1 };
 
     /* Set up an empty capture list */
-    b->caps = calloc(1, sizeof(struct cap_list));
-    TAILQ_INIT(b->caps);
+    TAILQ_INIT(&b->head);
 
     /* Map function pointers */
 #if 0
@@ -393,16 +456,129 @@ static void cap_bundle_free(const struct refcnt *ref)
     struct cap_bundle *b =
         container_of(ref, struct cap_bundle, rcnt);
 
-        /* Drop reference count on all child structures. */
-    TAILQ_FOREACH_SAFE(cur, b->caps, entry, tmp) {
-        TAILQ_REMOVE(b->caps, cur, entry);
+    /* Drop reference count on all child structures. */
+    TAILQ_FOREACH_SAFE(cur, &b->head, entry, tmp) {
+        TAILQ_REMOVE(&b->head, cur, entry);
         cap_dropref(cur);
     }
-    free(b->caps);
     free(b);
 }
 
-void cap_analog_set_cal(struct cap_analog *acap, struct adc_cal *cal)
+void cap_analog_set_dcap(struct cap_analog *acap, cap_digital_t *dcap)
 {
-    acap->cal = cal;
+    if (acap->dcap)
+        cap_dropref((cap_t *) acap->dcap);
+    acap->dcap = dcap;
+}
+
+void cap_analog_set_sample(struct cap_analog *acap, uint64_t idx, uint16_t sample)
+{
+    acap->samples[idx] = sample;
+}
+
+uint64_t cap_get_nsamples(cap_t *cap)
+{
+    return cap->nsamples;
+}
+
+void cap_digital_set_sample(cap_digital_t *dcap, uint64_t idx, uint32_t sample)
+{
+    dcap->samples[idx] = sample;
+}
+
+uint32_t cap_digital_get_sample(cap_digital_t *dcap, uint64_t idx)
+{
+    return dcap->samples[idx];
+}
+
+struct cap_digital *cap_get_digital(struct cap *cap)
+{
+    struct cap_digital *dcap;
+    if (CAP_TYPE_DIGITAL == cap->type) {
+        dcap = (struct cap_digital *) cap_addref(cap);
+    } else if (CAP_TYPE_ANALOG == cap->type) {
+        struct cap_analog *acap = (struct cap_analog *) cap;
+        dcap = (struct cap_digital *) cap_addref((cap_t *) acap->dcap);
+    } else {
+        dcap = NULL;
+    }
+    return dcap;
+}
+
+struct cap_analog *cap_get_analog(struct cap *cap)
+{
+    struct cap_analog *acap;
+    if (CAP_TYPE_ANALOG == cap->type) {
+        acap = (struct cap_analog *) cap_addref(cap);
+    } else {
+        acap = NULL;
+    }
+    return acap;
+}
+
+uint16_t cap_analog_get_sample(struct cap_analog *acap, uint64_t idx)
+{
+    return acap->samples[idx];
+}
+
+uint16_t cap_analog_get_sample_min(struct cap_analog *acap)
+{
+    return acap->sample_min;
+}
+
+uint16_t cap_analog_get_sample_max(struct cap_analog *acap)
+{
+    return acap->sample_max;
+}
+
+void cap_set_physical_ch(cap_t *cap, uint8_t ch)
+{
+    cap->physical_ch = ch;
+}
+
+uint8_t cap_get_physical_ch(cap_t *cap)
+{
+    return cap->physical_ch;
+}
+
+void cap_set_period(cap_t *cap, float t)
+{
+    cap->period = t;
+}
+
+float cap_get_period(cap_t *cap)
+{
+    return cap->period;
+}
+
+void cap_bundle_add(struct cap_bundle *b, struct cap *c)
+{
+    TAILQ_INSERT_TAIL(&b->head, c, entry);
+}
+
+struct cap *cap_bundle_first(struct cap_bundle *b)
+{
+    return TAILQ_FIRST(&b->head);
+}
+
+struct cap *cap_next(struct cap *c)
+{
+    return TAILQ_NEXT(c, entry);
+}
+
+struct cap *cap_bundle_last(struct cap_bundle *b)
+{
+    return TAILQ_LAST(&b->head, cap_list);
+}
+
+void cap_analog_set_cal(struct cap_analog *acap, float vmin, float vmax)
+{
+    if (acap->cal)
+        free(acap->cal);
+    acap->cal = adc_cal_create(vmin, vmax);
+}
+
+adc_cal_t *cap_analog_get_cal(struct cap_analog *acap)
+{
+    return acap->cal;
 }

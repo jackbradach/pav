@@ -73,14 +73,56 @@ void test_gui(gui_ctx_t *gui)
 }
 #endif
 
+void do_decode(struct pav_opts *opts)
+{
+    // open file w/gzip
+    // run through decoder
+    // print results.
+    char *usart_recv;
+    uint64_t decode_cnt;
+
+    pa_usart_ctx_t *usart;
+    cap_bundle_t *bun;
+    cap_t *cap;
+
+    saleae_import_analog(opts->fin_name, &bun);
+
+    pa_usart_ctx_init(&usart);
+    pa_usart_ctx_map_data(usart, 0);
+
+#if 0
+    saleae_import_analog(SAMPLE_DIR "uart_analog_115200_50mHz.bin", &bun);
+    pa_usart_ctx_set_freq(usart, 50.0E6);
+
+    cap = cap_bundle_first(bun);
+    pa_usart_decode_chunk(usart, cap);
+
+    decode_cnt = pa_usart_get_decoded(usart, &usart_recv);
+#endif
+
+    free(usart_recv);
+    pa_usart_ctx_cleanup(usart);
+}
+
 int main(int argc, char *argv[])
 {
     struct pav_opts opts;
-    //gui_ctx_t *gui;
-    parse_cmdline(argc, argv, &opts);
+
     /* Make printf add an appropriate thousand's delimiter, based on locale */
     setlocale(LC_NUMERIC, "");
 
-//    SDL_Quit();
+    parse_cmdline(argc, argv, &opts);
+//    if (stdin == opts.fin)
+//        freopen(NULL, "rb", stdin);
+
+    switch (opts.op) {
+        case PAV_OP_DECODE:
+            do_decode(&opts);
+            break;
+    }
+
+
+    //fclose(opts.fin);
+    //fclose(opts.fout);
     return EXIT_SUCCESS;
 }

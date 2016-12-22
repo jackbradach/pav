@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <gtest/gtest.h>
+#include "test_utils.hpp"
 
 #include "cap.h"
 #include "proto.h"
@@ -8,6 +9,7 @@
 TEST(Proto, ProtoLifeCycle) {
     const char gold_data[] = "+++Test Data Stream+++";
     const char gold_note[] = "---Test Note---";
+    float gold_period = 1.2345678E5;
     proto_t *pr, *pr2;
     proto_dframe_t *df;
     unsigned refcnt;
@@ -28,6 +30,9 @@ TEST(Proto, ProtoLifeCycle) {
     /* Populate the proto bucket */
     proto_set_note(pr, gold_note);
     ASSERT_STREQ(gold_note, proto_get_note(pr));
+    proto_set_period(pr, gold_period);
+    ASSERT_FLOAT_EQ(gold_period, proto_get_period(pr));
+
 
     for (int i = 0; i < 1000; i++) {
         uint8_t *c = (uint8_t *) malloc(sizeof(uint8_t));

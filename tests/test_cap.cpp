@@ -3,10 +3,11 @@
 #include "cap.h"
 
 TEST(CapTest, AnalogCaptureLifecycle) {
-    struct cap_analog *acap;
+    cap_analog_t *acap;
     uint8_t refcnt = 0;
+    unsigned nsamples = 1000;
 
-    acap = cap_analog_create();
+    acap = cap_analog_create(nsamples);
     refcnt++;
 
     /* Check that structure was created */
@@ -31,7 +32,7 @@ TEST(CapTest, AnalogCaptureLifecycle) {
 }
 
 TEST(CapTest, BundleLifecycle) {
-    struct cap_bundle *bun;
+    cap_bundle_t *bun;
     uint8_t refcnt;
 
     bun = cap_bundle_create();
@@ -60,10 +61,11 @@ TEST(CapTest, BundleLifecycle) {
 }
 
 TEST(CapTest, DigitalCaptureLifecycle) {
-    struct cap_digital *dcap;
+    cap_digital_t *dcap;
+    unsigned nsamples = 1000;
     uint8_t refcnt = 0;
 
-    dcap = cap_digital_create();
+    dcap = cap_digital_create(nsamples);
     refcnt++;
 
     /* Check that structure was created */

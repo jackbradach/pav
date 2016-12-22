@@ -11,7 +11,7 @@ TEST(PaSpiTest, Functional) {
 
     uint64_t sample_count = 0;
     uint64_t decode_count = 0;
-    struct cap_digital *dcap;
+    cap_digital_t *dcap;
     int rc;
 
     /* Init SPI decoder and map physical channels to logical ones */
@@ -29,12 +29,13 @@ TEST(PaSpiTest, Functional) {
         printf("rc: %d\n", rc);
     }
 
-    for (unsigned long i = 0; i < dcap->super.nsamples; i++)
+    for (unsigned long i = 0; i < cap_get_nsamples((cap_t *) dcap); i++)
     {
+        uint32_t sample;
         uint8_t dout, din;
         int rc;
-
-        rc = pa_spi_stream(spi_ctx, dcap->samples[i], &dout, &din);
+        sample = cap_digital_get_sample(dcap, i);
+        rc = pa_spi_stream(spi_ctx, sample, &dout, &din);
         if (PA_SPI_DATA_VALID == rc) {
             decode_count++;
         }
@@ -44,9 +45,3 @@ TEST(PaSpiTest, Functional) {
     ASSERT_TRUE(decode_count > 0);
     ASSERT_TRUE(sample_count > 0);
 }
-
-#if 0
-printf("Time elapsed: %f seconds\n", elapsed);
-printf("Samples processed: %'lu (%'lu samples/s)\n", sample_count, (unsigned long) (sample_count/elapsed));
-printf("Decode count: %'lu (%'lu bytes/s)\n", decode_count, (unsigned long) (decode_count/elapsed));
-#endif

@@ -38,6 +38,7 @@
 
 #define USART_FLAG_MASK (SPI_FLAG_CPOL | SPI_FLAG_CPHA | SPI_FLAG_ENDIANESS | SPI_FLAG_CS_POLARITY)
 
+
 enum pa_usart_sm {
     USART_SM_IDLE = 0,
     USART_SM_SOF,
@@ -49,7 +50,6 @@ enum {
     USART_PA_SPACE = 0,
     USART_PA_MARK
 };
-
 
 /* Struct: pa_usart_state
  *
@@ -91,7 +91,59 @@ struct pa_usart_ctx {
     float sample_period;
     proto_t *pr;
     struct pa_usart_state *state;
+    uint64_t sample_cnt;
+    uint64_t decode_cnt;
 };
+
+static inline uint8_t unswizzle_sample(struct pa_usart_ctx *ctx, uint32_t sample);
+static void stream_decoder(struct pa_usart_ctx *ctx, uint8_t sample);
+
+static void usart_add_dframe_sof(struct pa_usart_ctx *c, uint64_t idx);
+static void usart_add_dframe_data(struct pa_usart_ctx *c, uint64_t idx, uint8_t data);
+static void usart_add_dframe_eof(struct pa_usart_ctx *c, uint64_t idx);
+static void usart_add_dframe_error(struct pa_usart_ctx *c, uint64_t idx);
+
+/* Function: pa_usart_decode_stream
+ *
+ * Public interface to the USART stream decoder; it takes a raw digital,
+ * unswizzles the USART signals that the context is registered to handle,
+ * and then passes it to the stream decoder.
+ *
+ * Parameters:
+ *      ctx - Handle to a USART decode context.
+ *      raw - 32-bit raw sample from logic analyzer
+ *
+ */
+void pa_usart_decode_stream(struct pa_usart_ctx *ctx, uint32_t raw)
+{
+    uint8_t sample = unswizzle_sample(ctx, raw);
+    stream_decoder(ctx, sample);
+}
+
+/* Function: pa_usart_decode_chunk
+ *
+ * Public interface to the USART chunk decoder; same idea as them
+ * stream but it works on all samples in a capture.
+ *
+ * Parameters:
+ *      ctx - Handle to a USART decode context.
+ *      cap - cap_t handle (analog or digital)
+ */
+// TODO - 2016/12/21 - jbradach - this needs to track sample index
+// TODO - separate from the cap file; multiple cap files can be
+// TODO - "stiched" together and ctx needs an 'absolute' index
+// TODO - based on how many samples have been seen since last reset.
+void pa_usart_decode_chunk(struct pa_usart_ctx *ctx, cap_t *cap)
+{
+    cap_digital_t *dcap;
+    dcap = cap_get_digital(cap);
+
+    for (uint64_t i = 0; i < cap_get_nsamples((cap_t *) dcap); i++) {
+        uint32_t dsample = cap_digital_get_sample(dcap, i);
+        uint8_t us = unswizzle_sample(ctx, dsample);
+        stream_decoder(ctx, us);
+    }
+}
 
 /* Function: unswizzle_sample
  *
@@ -123,6 +175,7 @@ static inline void sm_idle(struct pa_usart_ctx *ctx, uint8_t sample)
 {
     struct pa_usart_state *state = ctx->state;
     if (USART_PA_SPACE == sample) {
+        usart_add_dframe_sof(ctx, ctx->sample_cnt);
         state->sm = USART_SM_SOF;
         state->nbits_sampled = 0;
         // XXX - autobaud disabled
@@ -148,9 +201,7 @@ static inline void sm_sof(struct pa_usart_ctx *ctx, uint8_t sample)
             state->sm = USART_SM_DATA;
             state->bit_frac_cnt = 1;
         } else {
-            // TODO - jbradach - 2016/12/11 - add some sort of error feedback
-            // TODO - to the caller on when a spurious bit happened.
-            //printf("Spurious start bit!\n");
+            usart_add_dframe_error(ctx, ctx->sample_cnt);
             state->sm = USART_SM_IDLE;
         }
     } else if (state->bit_frac_cnt == state->bit_width) {
@@ -185,6 +236,7 @@ static inline void sm_data(struct pa_usart_ctx *ctx, uint8_t sample)
          * for the stop bit.
          */
         if (state->nbits_sampled == ctx->symbol_length) {
+            usart_add_dframe_eof(ctx, ctx->sample_cnt);
             state->sm = USART_SM_EOF;
         }
         state->bit_frac_cnt = 1;
@@ -210,7 +262,7 @@ static inline void sm_eof(struct pa_usart_ctx *ctx, uint8_t sample)
         // TODO - so they can discard the data or calculate how far out
         // TODO - of spec it was.  Kick back to SOF and try to go from there.
         if (USART_PA_MARK != sample) {
-            printf("\nFraming error in STOP bit!\n");
+            usart_add_dframe_error(ctx, ctx->sample_cnt);
             state->sm = USART_SM_SOF;
             state->bit_frac_cnt = 0;
         }
@@ -220,6 +272,7 @@ static inline void sm_eof(struct pa_usart_ctx *ctx, uint8_t sample)
          * the next frame, though.
          */
          if (USART_PA_SPACE == sample) {
+            usart_add_dframe_sof(ctx, ctx->sample_cnt);
             state->sm = USART_SM_SOF;
             state->data_valid = 1;
             state->bit_frac_cnt = 0;
@@ -242,7 +295,7 @@ static inline void sm_eof(struct pa_usart_ctx *ctx, uint8_t sample)
  * FIXME - start measuring frames to find a single-bit transition.  Maybe
  * FIXME - measure drift over time and report it?
  */
-static int stream_decoder(struct pa_usart_ctx *ctx, uint8_t sample, uint8_t *out)
+static void stream_decoder(struct pa_usart_ctx *ctx, uint8_t sample)
 {
     struct pa_usart_state *state = ctx->state;
 
@@ -269,57 +322,14 @@ static int stream_decoder(struct pa_usart_ctx *ctx, uint8_t sample, uint8_t *out
     }
 
     if (state->data_valid) {
-        *out = state->data;
+        usart_add_dframe_data(ctx, ctx->sample_cnt, state->data);
+        ctx->decode_cnt++;
         state->data_valid = 0;
         state->data = 0;
         state->nbits_sampled = 0;
-        return PA_USART_DATA_VALID;
     }
 
-    return 0;
-}
-
-/* Function: pa_usart_stream
- *
- * Public interface to the SPI stream decoder; it takes a raw sample,
- * unswizzles the SPI signals that the context is registered to handle,
- * and then passes it to the stream decoder.  Caller is responsible for
- * watching the return value and collecting any bytes that are decoded.
- *
- * If the mosi or miso parameters are NULL, the decoder assumes you don't
- * care about them and will skip outputting them.  Having both NULL is
- * valid, just not particularly useful.
- *
- * Parameters:
- *      ctx - Handle to a USART decode context.
- *      raw - 32-bit raw sample from logic analyzer
- *      out - pointer to a byte where decoded data will be stored.
- *
- * Returns:
- *      pa_usart_DATA_VALID on valid data,
- *      pa_usart_IDLE / pa_usart_ACTIVE as appropriate otherwise.
- *
- */
-int pa_usart_stream(struct pa_usart_ctx *ctx, uint32_t raw, uint8_t *out)
-{
-    uint8_t sample = unswizzle_sample(ctx, raw);
-    return stream_decoder(ctx, sample, out);
-}
-
-int usart_pkt_buf_alloc(struct usart_pkt_buf **new_pbuf)
-{
-    struct usart_pkt_buf *pbuf;
-    long page_size = sysconf(_SC_PAGESIZE);
-    if (NULL == pbuf)
-        return -EINVAL;
-
-    pbuf = calloc(1, sizeof(struct usart_pkt_buf));
-    pbuf->data = calloc(page_size, sizeof (uint8_t));
-    pbuf->idx = calloc(page_size, sizeof (uint32_t));
-
-    *new_pbuf = pbuf;
-
-    return 0;
+    ctx->sample_cnt++;
 }
 
 /* Function: pa_usart_ctx_init
@@ -335,6 +345,8 @@ int usart_pkt_buf_alloc(struct usart_pkt_buf **new_pbuf)
 int pa_usart_ctx_init(struct pa_usart_ctx **new_ctx)
 {
     struct pa_usart_ctx *ctx;
+    proto_t *pr;
+
     if (NULL == new_ctx)
         return -EINVAL;
 
@@ -344,6 +356,10 @@ int pa_usart_ctx_init(struct pa_usart_ctx **new_ctx)
     ctx = calloc(1, sizeof(struct pa_usart_ctx));
     ctx->symbol_length = DEFAULT_SYMBOL_LENGTH;
     ctx->state = calloc(1, sizeof(struct pa_usart_state));
+
+    pr = proto_create();
+    proto_set_note(pr, "USART");
+    ctx->pr = pr;
 
     *new_ctx = ctx;
     return 0;
@@ -356,7 +372,7 @@ int pa_usart_ctx_init(struct pa_usart_ctx **new_ctx)
  * longer needed.
  *
  * Parameters:
- *      ctx - handle SPI decode context structure to destroy; this handle
+ *      ctx - handle USART decode context structure to destroy; this handle
  *            will be immediately invalid after return.
  */
 void pa_usart_ctx_cleanup(struct pa_usart_ctx *ctx)
@@ -369,7 +385,58 @@ void pa_usart_ctx_cleanup(struct pa_usart_ctx *ctx)
         ctx->state = 0;
     }
 
+    if (ctx->pr) {
+        proto_dropref(ctx->pr);
+    }
+
     free(ctx);
+}
+
+static void usart_add_dframe_sof(struct pa_usart_ctx *c, uint64_t idx)
+{
+    proto_add_dframe(c->pr, idx, USART_DFRAME_SOF, NULL);
+}
+
+static void usart_add_dframe_data(struct pa_usart_ctx *ctx, uint64_t idx, uint8_t data)
+{
+    uint8_t *c = calloc(1, sizeof(uint8_t));
+    *c = data;
+    proto_add_dframe(ctx->pr, idx, USART_DFRAME_DATA, c);
+}
+
+static void usart_add_dframe_eof(struct pa_usart_ctx *c, uint64_t idx)
+{
+    proto_add_dframe(c->pr, idx, USART_DFRAME_EOF, NULL);
+}
+
+static void usart_add_dframe_error(struct pa_usart_ctx *c, uint64_t idx)
+{
+    proto_add_dframe(c->pr, idx, USART_DFRAME_ERROR, NULL);
+}
+
+proto_t *pa_usart_get_proto(struct pa_usart_ctx *c)
+{
+    return proto_addref(c->pr);
+}
+
+/* Reset decoder internal state
+ *
+ * Internally, it's cloning everything except the
+ * frames and dropping the reference to the original;
+ * this is done to keep any outstanding handles to
+ * the frames valid.
+ */
+void pa_usart_reset(struct pa_usart_ctx *ctx)
+{
+    proto_t *new_pr;
+
+    ctx->sample_cnt = 0;
+    ctx->decode_cnt = 0;
+    new_pr = proto_create();
+    proto_set_period(new_pr, proto_get_period(ctx->pr));
+    proto_set_note(new_pr, proto_get_note(ctx->pr));
+    proto_dropref(ctx->pr);
+    ctx->pr = new_pr;
 }
 
 int pa_usart_ctx_map_data(pa_usart_ctx_t *ctx, uint8_t usart_bit)
@@ -392,11 +459,12 @@ int pa_usart_ctx_set_freq(pa_usart_ctx_t *ctx, float freq)
         return -EINVAL;
 
     ctx->sample_period = 1.0f / freq;
+    proto_set_period(ctx->pr, ctx->sample_period);
     ctx->state->bit_width = freq * 8.68e-6;
     return 0;
 }
 
-int pa_usart_ctx_set_baud(pa_usart_ctx_t *ctx, uint64_t baud)
+int pa_usart_ctx_set_baud(struct pa_usart_ctx *ctx, uint64_t baud)
 {
     if (NULL == ctx)
         return -EINVAL;
@@ -405,64 +473,30 @@ int pa_usart_ctx_set_baud(pa_usart_ctx_t *ctx, uint64_t baud)
     return 0;
 }
 
-
-#if 0
-void spi_pkt_buf_free(struct spi_pkt_buf *pbuf)
+/* Returns any data captured as a null-terminated string.
+ * String should be free'd when no longer needed.
+ */
+uint64_t pa_usart_get_decoded(struct pa_usart_ctx *ctx, char **out)
 {
+    char *d = calloc(ctx->decode_cnt + 1, sizeof(char));
+    proto_dframe_t *df = proto_dframe_first(ctx->pr);
+    uint64_t bytes = 0;
 
-}
-
-int pa_usart_buffer(struct pa_usart_ctx *ctx, uint32_t *sbuf, uint32_t sbuf_len, struct spi_pkt_buf *out)
-{
-    if ((NULL == sbuf) || (NULL == out))
-        return -EINVAL;
-
-    for (unsigned long i = 0; i < (sbuf_len / sizeof(uint32_t)); i++)
-    {
-        uint8_t dout, din;
-        int rc;
-
-        rc = pa_usart_stream(ctx, sbuf[i], &dout, &din);
-        if (pa_usart_DATA_VALID == rc) {
-
-        }
+    if (NULL == df) {
+        *out = NULL;
+        return 0;
     }
 
-    return 0;
+    while (bytes < ctx->decode_cnt) {
+        int type = proto_dframe_type(df);
+        if (USART_DFRAME_DATA == type) {
+            d[bytes] = *(uint8_t *) proto_dframe_udata(df);
+            bytes++;
+        }
+        df = proto_dframe_next(df);
+    }
+
+    *out = d;
+
+    return ctx->decode_cnt;
 }
-
-
-
-
-
-int pa_usart_ctx_map_miso(pa_usart_ctx_t *ctx, uint8_t miso_bit)
-{
-    if ((NULL == ctx) || (miso_bit >= MAX_SAMPLE_WIDTH))
-        return -EINVAL;
-
-    ctx->mask_miso = (1 << miso_bit);
-    return 0;
-}
-
-int pa_usart_ctx_map_sclk(pa_usart_ctx_t *ctx, uint8_t sclk_bit)
-{
-    if ((NULL == ctx) || (sclk_bit >= MAX_SAMPLE_WIDTH))
-        return -EINVAL;
-
-    ctx->mask_sclk = (1 << sclk_bit);
-    return 0;
-}
-
-int pa_usart_ctx_map_cs(pa_usart_ctx_t *ctx, uint8_t cs_bit)
-{
-    if ((NULL == ctx) || (cs_bit >= MAX_SAMPLE_WIDTH))
-        return -EINVAL;
-
-    ctx->mask_cs = (1 << cs_bit);
-    return 0;
-}
-
-
-
-
-#endif

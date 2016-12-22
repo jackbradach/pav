@@ -14,8 +14,6 @@
 
 #include "plot.h"
 
-
-
 #define PLOT_LABEL_MAXLEN 64
 
 struct plot {
@@ -39,11 +37,18 @@ void plot_from_cap(cap_t *cap, int64_t idx_begin, uint64_t idx_end, struct plot 
 static void plot_from_acap(struct cap_analog *acap, uint64_t idx_begin, uint64_t idx_end, struct plot **plot)
 {
     struct plot *p;
+    uint16_t smin, smax;
+    adc_cal_t *cal;
+
     p = plot_create();
 
     /* Set the y-axis scales to the voltage range */
-    p->ymin = adc_sample_to_voltage(acap->sample_min, acap->cal);
-    p->ymax = adc_sample_to_voltage(acap->sample_max, acap->cal);
+    smin = cap_analog_get_sample_min(acap);
+    smax = cap_analog_get_sample_max(acap);
+    cal = cap_analog_get_cal(acap);
+
+    p->ymin = adc_sample_to_voltage(smin, cal);
+    p->ymax = adc_sample_to_voltage(smax, cal);
     p->len = idx_end - idx_begin;
 
     p->x = calloc(p->len, sizeof(double));
@@ -51,9 +56,11 @@ static void plot_from_acap(struct cap_analog *acap, uint64_t idx_begin, uint64_t
 
     // extract x / y from acaps
     for (uint64_t i = idx_begin, j = 0; i < idx_end; i++, j++) {
+        uint16_t sample = cap_analog_get_sample(acap, i);
+        float v = adc_sample_to_voltage(sample, cal);
         // FIXME: the array needs to start at zero even if the indices do not!
         p->x[j] = (idx_begin + j);
-        p->y[j] = adc_sample_to_voltage(acap->samples[i], acap->cal);
+        p->y[j] = v;
     }
 
     // call plot create
@@ -168,14 +175,10 @@ unsigned plot_getref(struct plot *p)
     return p->rcnt.count;
 }
 
-
 static void plot_free(const struct refcnt *ref)
 {
     struct plot *p =
         container_of(ref, struct plot, rcnt);
-
-    if (NULL == p)
-        return;
 
     if (p->x)
         free(p->x);

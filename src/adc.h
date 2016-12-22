@@ -29,24 +29,18 @@
 extern "C" {
 #endif
 
-/* Struct: adc_cal
- *
- * Calibration values for analog samples, these are used to convert
- * the raw sample values to voltages according to the calibration
- * from the logic analyzer.  Scale defaults to +/- 10.0V if not
- * provided.
- */
-struct adc_cal {
-    double vmin;
-    double vmax;
-};
+typedef struct adc_cal adc_cal_t;
 
 #include "cap.h"
 
-float adc_sample_to_voltage(uint16_t sample, struct adc_cal *cal);
-uint16_t adc_voltage_to_sample(float voltage, struct adc_cal *cal);
-void adc_acap_ttl(struct cap_analog *acap);
-void adc_acap(struct cap_analog *acap, uint16_t v_lo, uint16_t v_hi);
+adc_cal_t *adc_cal_create(float vmin, float vmax);
+float adc_sample_to_voltage(uint16_t sample, adc_cal_t *cal);
+uint16_t adc_voltage_to_sample(float voltage, adc_cal_t *cal);
+void adc_acap_ttl(cap_analog_t *acap);
+void adc_acap(cap_analog_t *acap, uint16_t v_lo, uint16_t v_hi);
+
+double adc_cal_get_vmin(adc_cal_t *cal);
+double adc_cal_get_vmax(adc_cal_t *cal);
 
 #ifdef __cplusplus
 }

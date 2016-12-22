@@ -30,6 +30,36 @@
 const float VMAX_DEFAULT = 10.0f;
 const float VMIN_DEFAULT = -10.0f;
 
+/* Struct: adc_cal
+ *
+ * Calibration values for analog samples, these are used to convert
+ * the raw sample values to voltages according to the calibration
+ * from the logic analyzer.  Scale defaults to +/- 10.0V if not
+ * provided.
+ */
+struct adc_cal {
+    double vmin;
+    double vmax;
+};
+
+struct adc_cal *adc_cal_create(float vmin, float vmax)
+{
+    struct adc_cal *cal = calloc(1, sizeof(struct adc_cal));
+    cal->vmin = vmin;
+    cal->vmax = vmax;
+    return cal;
+}
+
+double adc_cal_get_vmin(adc_cal_t *cal)
+{
+    return cal->vmin;
+}
+
+double adc_cal_get_vmax(adc_cal_t *cal)
+{
+    return cal->vmax;
+}
+
 
 /* Static prototypes */
 //static int adc_convert(struct cap_analog *acap, struct cap_digital **dcap, uint16_t v_lo, uint16_t v_hi);
@@ -65,8 +95,8 @@ uint16_t adc_voltage_to_sample(float voltage, struct adc_cal *cal)
 
 void adc_acap_ttl(struct cap_analog *acap)
 {
-    const uint16_t ttl_low = adc_voltage_to_sample(0.8f, acap->cal);
-    const uint16_t ttl_high = adc_voltage_to_sample(2.0f, acap->cal);
+    const uint16_t ttl_low = adc_voltage_to_sample(0.8f, cap_analog_get_cal(acap));
+    const uint16_t ttl_high = adc_voltage_to_sample(2.0f, cap_analog_get_cal(acap));
     adc_acap(acap, ttl_low, ttl_high);
 }
 
@@ -81,29 +111,24 @@ void adc_acap(struct cap_analog *acap, uint16_t v_lo, uint16_t v_hi)
     // TODO - more abandoning the old dcap (it'll be freed if no one holds a
     // TODO - handle) and creating a new one.  This'll make copying them around
     // TODO - less of a headache.
-    if (acap->dcap)
-        cap_dropref((cap_t *) acap->dcap);
-
-    dcap = cap_digital_create();
-
-    nsamples = acap->super.nsamples;
-    dcap->samples = calloc(nsamples, sizeof(uint8_t));
+    nsamples = cap_get_nsamples((cap_t *) acap);
+    dcap = cap_digital_create(nsamples);
 
     for (uint64_t i = 0; i < nsamples; i++) {
         static uint8_t digital = 0;
         /* Digital samples only change when crossing the voltage
          * thresholds.
          */
-        uint16_t ch_sample = acap->samples[i];
+        uint16_t ch_sample = cap_analog_get_sample(acap, i);
         if (ch_sample <= v_lo) {
             digital = 0;
         } else if (ch_sample >= v_hi) {
             digital = 1;
         }
-        dcap->samples[i] = digital;
+        cap_digital_set_sample(dcap, i, digital);
     }
 
-    acap->dcap = dcap;
+    cap_analog_set_dcap(acap, dcap);
 }
 
 // FIXME: update these to use the new analog capture and bundle formats.

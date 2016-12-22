@@ -179,10 +179,20 @@ void proto_set_note(proto_t *pr, const char *s)
 
 const char *proto_get_note(struct proto *pr)
 {
-    return &pr->note;
+    return (const char *) &pr->note;
 }
 
 uint64_t proto_get_nframes(struct proto *pr)
 {
     return pr->nframes;
+}
+
+void proto_set_period(proto_t *pr, float t)
+{
+    pr->period = t;
+}
+
+float proto_get_period(proto_t *pr)
+{
+    return pr->period;
 }

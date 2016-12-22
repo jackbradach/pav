@@ -17,6 +17,8 @@ static void set_mode(struct argp_state *state, enum pav_op op);
 static bool opts_valid(struct pav_opts *opts);
 
 enum opt_keys {
+        OPT_KEY_INVALID = 1,
+        OPT_KEY_DECODE,
         OPT_KEY_VERSION = 'V',
         OPT_KEY_VERBOSE = 'v',
         OPT_KEY_IN_FILENAME = 'i',
@@ -24,20 +26,20 @@ enum opt_keys {
 };
 
 enum opt_groups {
-        OPT_GROUP_REQUIRED = 1,
-        OPT_GROUP_COMMAND,
+        OPT_GROUP_COMMAND =1,
         OPT_GROUP_OPTIONAL
 };
 
 static struct argp_option options[] =
 {
-    {"Commands:", 0, 0, OPTION_DOC, 0, OPT_GROUP_COMMAND},
-    {"version", OPT_KEY_VERSION, 0, 0, "Report program version"},
+    {0, 0, 0, OPTION_DOC, "Commands:", OPT_GROUP_COMMAND},
+    {"decode", OPT_KEY_DECODE, 0, 0, "Decode a USART capture"},
 
     {0, 0, 0, OPTION_DOC, "Options:", OPT_GROUP_OPTIONAL},
-    {"file_in", 'i', "[capture_file]", 0, "Capture file input", OPT_GROUP_REQUIRED},
-    {0, 0, 0, OPTION_DOC, "Options:", OPT_GROUP_OPTIONAL},
+    {"in", 'i', "FILE", 0, "Capture file input", OPT_GROUP_OPTIONAL},
+    {"out", 'o', "FILE", 0, "output file", OPT_GROUP_OPTIONAL},
     {"verbose", OPT_KEY_VERBOSE, 0, OPTION_ARG_OPTIONAL, "Write additional information to stdout", OPT_GROUP_OPTIONAL},
+
     {0}
 };
 
@@ -100,6 +102,8 @@ static bool opts_valid(struct pav_opts *opts)
     /* Default mode if not specified is 'decode' */
     if (PAV_OP_INVALID == opts->op)
         opts->op = PAV_OP_DECODE;
+
+    // check fin/fout?
 
     return true;
 }
