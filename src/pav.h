@@ -22,6 +22,7 @@ struct pav_opts {
         char fin_name[64];
         char fout_name[64];
         enum pav_op op;
+        unsigned loops;
         bool verbose;
 };
 

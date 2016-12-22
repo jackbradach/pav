@@ -73,14 +73,11 @@ void test_gui(gui_ctx_t *gui)
 }
 #endif
 
+/* Imports an analog capture file, runs it through the decoder, and
+ * spits out the results in a table.
+ */
 void do_usart_decode(struct pav_opts *opts)
 {
-    // open file w/gzip
-    // run through decoder
-    // print results.
-    char *usart_recv;
-    uint64_t decode_cnt;
-
     pa_usart_ctx_t *usart;
     cap_bundle_t *bun;
     cap_t *cap;
@@ -89,15 +86,15 @@ void do_usart_decode(struct pav_opts *opts)
     pa_usart_ctx_map_data(usart, 0);
     pa_usart_set_desc(usart, opts->fin_name);
     saleae_import_analog(opts->fin, &bun);
-    pa_usart_ctx_set_freq(usart, 50.0E6);
 
     cap = cap_bundle_first(bun);
-    pa_usart_decode_chunk(usart, cap);
-
-    decode_cnt = pa_usart_get_decoded(usart, &usart_recv);
+    pa_usart_ctx_set_freq(usart, 1.0f/cap_get_period(cap));
+    for (int i = 0; i < opts->loops; i++) {
+        pa_usart_decode_chunk(usart, cap);
+    }
 
     pa_usart_fprint_report(opts->fout, usart);
-    free(usart_recv);
+
     pa_usart_ctx_cleanup(usart);
 }
 
@@ -117,8 +114,5 @@ int main(int argc, char *argv[])
             break;
     }
 
-
-    //fclose(opts.fin);
-    //fclose(opts.fout);
     return EXIT_SUCCESS;
 }

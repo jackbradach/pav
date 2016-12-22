@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-
+#include <time.h>
 #include <unistd.h>
 
 #include "pa_usart.h"
@@ -94,6 +94,7 @@ struct pa_usart_ctx {
     struct pa_usart_state *state;
     uint64_t sample_cnt;
     uint64_t decode_cnt;
+    struct timespec elapsed;
     char *desc;
 };
 
@@ -104,6 +105,9 @@ static void usart_add_dframe_sof(struct pa_usart_ctx *c, uint64_t idx);
 static void usart_add_dframe_data(struct pa_usart_ctx *c, uint64_t idx, uint8_t data);
 static void usart_add_dframe_eof(struct pa_usart_ctx *c, uint64_t idx);
 static void usart_add_dframe_error(struct pa_usart_ctx *c, uint64_t idx);
+
+static struct timespec ts_diff(struct timespec *start, struct timespec *end);
+static struct timespec ts_add(struct timespec *a, struct timespec *b);
 
 /* Function: pa_usart_decode_stream
  *
@@ -138,13 +142,62 @@ void pa_usart_decode_stream(struct pa_usart_ctx *ctx, uint32_t raw)
 void pa_usart_decode_chunk(struct pa_usart_ctx *ctx, cap_t *cap)
 {
     cap_digital_t *dcap;
+    struct timespec ts_start, ts_end, ts_delta;
+
     dcap = cap_get_digital(cap);
 
+    clock_gettime(CLOCK_MONOTONIC, &ts_start);
     for (uint64_t i = 0; i < cap_get_nsamples((cap_t *) dcap); i++) {
         uint32_t dsample = cap_digital_get_sample(dcap, i);
         uint8_t us = unswizzle_sample(ctx, dsample);
         stream_decoder(ctx, us);
     }
+    clock_gettime(CLOCK_MONOTONIC, &ts_end);
+
+    ts_delta = ts_diff(&ts_start, &ts_end);
+
+    ctx->elapsed = ts_add(&ctx->elapsed, &ts_delta);
+}
+
+static struct timespec ts_add(struct timespec *a, struct timespec *b)
+{
+    struct timespec tmp;
+
+    tmp.tv_sec = a->tv_sec + b->tv_sec;
+    tmp.tv_nsec = a->tv_nsec + b->tv_nsec;
+    if (tmp.tv_nsec >= 1E9) {
+        tmp.tv_nsec -= 1E9;
+        tmp.tv_sec++;
+    }
+    return tmp;
+}
+
+static struct timespec ts_diff(struct timespec *start, struct timespec *end)
+{
+    struct timespec tmp;
+
+    if ((end->tv_nsec - start->tv_nsec) < 0) {
+		tmp.tv_sec = end->tv_sec - start->tv_sec - 1;
+		tmp.tv_nsec = 1E9 + (end->tv_nsec - start->tv_nsec);
+	} else {
+		tmp.tv_sec = end->tv_sec - start->tv_sec;
+		tmp.tv_nsec = end->tv_nsec - start->tv_nsec;
+	}
+    return tmp;
+}
+
+/* Returns the number of seconds (as a double) consumed
+ * by the protocol decoder since the last time it was reset.
+ */
+double pa_usart_time_elapsed(pa_usart_ctx_t *ctx)
+{
+    double elapsed;
+    struct timespec *t = &ctx->elapsed;
+    elapsed = t->tv_nsec * 1.0E-9;
+    if (t->tv_sec) {
+        elapsed += (t->tv_sec * 1E9);
+    }
+    return elapsed;
 }
 
 /* Function: unswizzle_sample
@@ -434,6 +487,8 @@ void pa_usart_reset(struct pa_usart_ctx *ctx)
 
     ctx->sample_cnt = 0;
     ctx->decode_cnt = 0;
+    ctx->elapsed = (struct timespec){0};
+
     new_pr = proto_create();
     proto_set_period(new_pr, proto_get_period(ctx->pr));
     proto_set_note(new_pr, proto_get_note(ctx->pr));
@@ -566,6 +621,7 @@ void pa_usart_fprint_report(FILE *fp, struct pa_usart_ctx *ctx)
     const size_t wout = 64; /* Output width */
     const size_t tab = 4; /* Tab width */
     char tmpstr[wout + 1];
+    double elapsed;
 
     fprintf_linebreak(fp, wout, '=');
     fprintf_center(fp, wout, "-- USART Decode: 115200 @ 8-N-1 --\n");
@@ -579,23 +635,14 @@ void pa_usart_fprint_report(FILE *fp, struct pa_usart_ctx *ctx)
     snprintf(tmpstr, wout, "Symbols Decoded: %lu\n", ctx->decode_cnt);
     fprintf_indent(fp, tab, tmpstr);
 
-    fprint_symbols(fp, ctx, wout, tab);
-    #if 0
-    fprintf(fp, "\n");
-    fprintf(fp, "\n");
-    fprintf(fp, "\n");
-    fprintf(fp, "\n");
-    fprintf(fp, "\n");
-    fprintf(fp, "\n");
-    fprintf(fp, "\n");
-    fprintf(fp, "\n");
-    fprintf(fp, "\n");
+    elapsed = pa_usart_time_elapsed(ctx);
+    snprintf(tmpstr, wout, "Total time: %.02e s\n", elapsed);
+    fprintf_indent(fp, tab, tmpstr);
 
-#endif
-    // print timing statistics (add them for ctx)
+    snprintf(tmpstr, wout, "Average Rate: %.02e samples/s\n",
+        ctx->decode_cnt/elapsed);
+    fprintf_indent(fp, tab, tmpstr);
 }
-
-
 
 void pa_usart_set_desc(struct pa_usart_ctx *c, const char *s)
 {

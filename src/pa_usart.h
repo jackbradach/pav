@@ -87,6 +87,8 @@ const char *pa_usart_get_desc(struct pa_usart_ctx *c);
 void pa_usart_fprint_report(FILE *fp, pa_usart_ctx_t *ctx);
 void pa_usart_fprint_hdr(FILE *fp, pa_usart_ctx_t *ctx);
 
+double pa_usart_time_elapsed(pa_usart_ctx_t *ctx);
+
 #ifdef __cplusplus
 }
 #endif
