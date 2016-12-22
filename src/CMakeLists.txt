@@ -2,6 +2,10 @@ find_package(PLplot REQUIRED)
 include_directories(${PLplot_INCLUDE_DIR})
 set(LIBS ${LIBS} ${PLplot_cxx_LIBRARY})
 
+find_package(ZLIB REQUIRED)
+include_directories(${ZLIB_INCLUDE_DIRS})
+set(LIBS ${LIBS} ${ZLIB_LIBRARIES})
+
 # Source containing 'main()'
 set(SRC_MAIN
     pav.c

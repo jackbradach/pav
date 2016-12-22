@@ -8,6 +8,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include <zlib.h>
+
 #include "adc.h"
 
 struct __attribute__((__packed__)) saleae_analog_header {
@@ -20,6 +22,7 @@ struct __attribute__((__packed__)) saleae_analog_header {
 static int mmap_file(const char *filename, void **buf, size_t *length);
 static void mmap_file_new(FILE *fp, void **buf, size_t *length);
 static void import_analog_channel(void *abuf, unsigned ch, cap_analog_t *acap);
+static void inflate_buffer(void **buf, size_t *buf_len);
 
 void saleae_import_analog_new(FILE *fp, struct cap_bundle **new_bundle)
 {
@@ -29,7 +32,7 @@ void saleae_import_analog_new(FILE *fp, struct cap_bundle **new_bundle)
     struct saleae_analog_header *hdr;
 
     mmap_file_new(fp, &abuf, &abuf_len);
-
+    inflate_buffer(&abuf, &abuf_len);
     hdr = (struct saleae_analog_header *) abuf;
     assert(hdr->channel_count > 0 && hdr->channel_count <= 16);
 
@@ -67,6 +70,8 @@ void saleae_import_analog(const char *src_file, struct cap_bundle **new_bundle)
         // TODO - 2016/12/15 - jbradach - graceful user input handling!
         abort();
     }
+
+
 
     hdr = (struct saleae_analog_header *) abuf;
     assert(hdr->channel_count > 0 && hdr->channel_count <= 16);
@@ -172,4 +177,46 @@ static void mmap_file_new(FILE *fp, void **buf, size_t *len)
     addr = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fileno(fp), 0);
     *len = st.st_size;
     *buf = addr;
+}
+
+static void inflate_buffer(void **buf, size_t *buf_len)
+{
+    size_t dst_len = 4 * (1 << 20); // start with 4 megabytes
+    void *dst = malloc(dst_len);
+    z_stream strm  = {
+        .next_in = (Bytef *) *buf,
+        .avail_in = *buf_len,
+        .next_out = (Bytef *) dst,
+        .avail_out = dst_len,
+    };
+
+    int rc;
+
+    /* Note: this bare value is literally what the dang documentation
+     * says to put in there for combining window size and whether or not
+     * I wants gzip header detection (spointer alert: I does!)
+     */
+    rc = inflateInit2(&strm, (15 + 32));
+    if (Z_OK != rc) {
+        return;
+    }
+
+    for (int retries = 10; retries > 0; retries--) {
+        dst = realloc(dst, dst_len);
+        rc = inflate(&strm, Z_FINISH);
+        assert(rc != Z_STREAM_ERROR);
+
+        if (Z_STREAM_END == rc) {
+            break;
+        } else if (Z_BUF_ERROR == rc) {
+            /* Bump the decompression buffer size */
+            dst_len *= 2;
+        } else {
+            /* Not compressed! */
+            inflateEnd(&strm);
+            return;
+        }
+    }
+    *buf = realloc(dst, strm.total_out);
+    *buf_len = strm.total_out;
 }

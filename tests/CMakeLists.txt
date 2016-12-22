@@ -14,6 +14,9 @@ find_package(Cairo REQUIRED)
 include_directories(${CAIRO_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${CAIRO_LIBRARIES})
 
+find_package(ZLIB REQUIRED)
+include_directories(${ZLIB_INCLUDE_DIRS})
+set(LIBS ${LIBS} ${ZLIB_LIBRARIES})
 
 set(TEST_SRCS
     test_adc.cpp
