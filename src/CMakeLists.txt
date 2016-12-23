@@ -33,7 +33,8 @@ set(SRC_LIBRARY
 
 set(LIBRARY_NAME protoval)
 set(BINARY_NAME pav)
+message("BUILD_SHARED_LIBS: ${BUILD_SHARED_LIBS}")
 
-add_library(${LIBRARY_NAME} STATIC ${SRC_LIBRARY})
+add_library(${LIBRARY_NAME} ${SRC_LIBRARY})
 add_executable(${BINARY_NAME} ${SRC_MAIN})
 target_link_libraries(${BINARY_NAME} ${LIBRARY_NAME} ${LIBS})

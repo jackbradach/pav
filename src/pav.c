@@ -69,17 +69,24 @@ void do_plot_capture_to_png(struct pav_opts *opts)
 {
     cairo_surface_t *cs;
     cap_bundle_t *bun;
-    cap_t *cap;
+    cap_t *cap, *pl_cap;
     plot_t *pl;
 
     /* Import capture and plot to a Cairo surface*/
     saleae_import_analog(opts->fin, &bun);
     cap = cap_bundle_first(bun);
-    plot_from_cap(cap, 0, cap_get_nsamples(cap), &pl);
 
-    cs = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 640, 480);
+    /* User requested range from capture. */
+    if (opts->range_begin != 0 || opts->range_end != 0) {
+        pl_cap = cap_create_subcap(cap, opts->range_begin, opts->range_end);
+    } else {
+        pl_cap = cap;
+    }
+
+    plot_from_cap(pl_cap, &pl);
+
+    cs = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1024, 768);
     plot_to_cairo_surface(pl, cs);
-
     cairo_surface_write_to_png(cs, "test.png");
     cairo_surface_destroy(cs);
 }

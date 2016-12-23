@@ -10,7 +10,7 @@ extern "C" {
 #include "cairo/cairo.h"
 
 typedef struct plot plot_t;
-void plot_from_cap(cap_t *cap, int64_t idx_begin, uint64_t idx_end, plot_t **plot);
+void plot_from_cap(cap_t *cap, plot_t **plot);
 void plot_analog_cap_gui(struct gui_ctx *gui, struct cap_analog *acap, unsigned idx_start, unsigned idx_end);
 
 plot_t *plot_create(void);

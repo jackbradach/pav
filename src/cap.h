@@ -40,6 +40,7 @@ typedef struct cap cap_t;
 #include "adc.h"
 
 /* Analog Capture Utilities */
+cap_t *cap_create_subcap(cap_t *cap, uint64_t begin, uint64_t end);
 void cap_analog_ch_copy(cap_analog_t *acap, uint8_t from, uint32_t to);
 void cap_set_analog_minmax(cap_analog_t *acap);
 
@@ -53,6 +54,12 @@ unsigned cap_getref(cap_t *cap);
 
 void cap_set_nsamples(cap_t *cap, uint64_t nsamples);
 uint64_t cap_get_nsamples(cap_t *cap);
+void cap_set_offset(cap_t *cap, uint64_t offset);
+uint64_t cap_get_offset(cap_t *cap);
+const char *cap_get_note(cap_t *cap);
+void cap_set_note(cap_t *cap, const char *note);
+
+
 void cap_set_physical_ch(cap_t *cap, uint8_t ch);
 uint8_t cap_get_physical_ch(cap_t *cap);
 void cap_set_period(cap_t *cap, float t);

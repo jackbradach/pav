@@ -24,6 +24,8 @@ enum opt_keys {
         OPT_KEY_VERBOSE = 'v',
         OPT_KEY_IN_FILENAME = 'i',
         OPT_KEY_OUT_FILENAME = 'o',
+        OPT_KEY_RANGE_BEGIN = 'b',
+        OPT_KEY_RANGE_END = 'e',
         OPT_KEY_LOOPS = 'c'
 };
 
@@ -43,6 +45,8 @@ static struct argp_option options[] =
 
     {0, 0, 0, OPTION_DOC, "Options:", OPT_GROUP_OPTIONAL},
     {"loops", OPT_KEY_LOOPS, "COUNT", OPTION_ARG_OPTIONAL, "Loop a capture COUNT times through the decoder", OPT_GROUP_OPTIONAL},
+    {"begin", OPT_KEY_RANGE_BEGIN, "IDX", OPTION_ARG_OPTIONAL, "Sample range begin (default zero)", OPT_GROUP_OPTIONAL},
+    {"end", OPT_KEY_RANGE_END, "IDX", OPTION_ARG_OPTIONAL, "Sample range end (default last sample)", OPT_GROUP_OPTIONAL},
     {"verbose", OPT_KEY_VERBOSE, 0, OPTION_ARG_OPTIONAL, "Write additional information to stdout", OPT_GROUP_OPTIONAL},
 
     {0}
@@ -69,6 +73,8 @@ static void set_defaults(struct pav_opts *opts)
         opts->fin = NULL;
         opts->fout = NULL;
         opts->loops = 1;
+        opts->range_begin = 0;
+        opts->range_end = 0;
 
         /* Is the capture file being piped in? */
         if (!isatty(fileno(stdin)))
@@ -97,6 +103,14 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 
     case OPT_KEY_PLOTPNG:
         set_op(state, PAV_OP_PLOTPNG);
+        break;
+
+    case OPT_KEY_RANGE_BEGIN:
+        opts->range_begin = atoll(arg);
+        break;
+
+    case OPT_KEY_RANGE_END:
+        opts->range_end = atoll(arg);
         break;
 
     case OPT_KEY_VERBOSE:

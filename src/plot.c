@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "cap.h"
 #include "gui.h"
@@ -27,44 +28,83 @@ struct plot {
 };
 
 static void plot_free(const struct refcnt *ref);
-static void plot_from_acap(struct cap_analog *acap, uint64_t idx_begin, uint64_t idx_end, struct plot **plot);
+static void plot_from_acap(struct cap_analog *acap, struct plot **plot);
 
-void plot_from_cap(cap_t *cap, int64_t idx_begin, uint64_t idx_end, struct plot **plot)
+void plot_from_cap(cap_t *cap, struct plot **plot)
 {
-    plot_from_acap((struct cap_analog *) cap, idx_begin, idx_end, plot);
+    plot_from_acap((struct cap_analog *) cap, plot);
 }
 
-static void plot_from_acap(struct cap_analog *acap, uint64_t idx_begin, uint64_t idx_end, struct plot **plot)
+static void sprint_plot_cap_title(cap_t *cap, char *s)
 {
-    struct plot *p;
+    uint64_t nsamples = cap_get_nsamples(cap);
+    float period = cap_get_period(cap);
+    double sampfreq = 1.0 / period;
+    double sampfreq_scaled = sampfreq / 1E6;
+    const char unit_ratemega[] = "MS/s";
+
+    double duration = nsamples * period;
+    double duration_scaled;
+    const char tbase_s[] = "s";
+    const char tbase_ms[] = "ms";
+    const char tbase_us[] = "us";
+    const char tbase_ns[] = "ns";
+    const char *tbase_unit = tbase_s;
+
+    /* If we can we want to scale the duration timebase from seconds to
+     * something easier to think about (eg, no scientific notation)
+     */
+    if (duration < 1E-6) {
+        tbase_unit = tbase_ns;
+        duration_scaled = duration * 1E9;
+    } else if (duration < 1E-3) {
+        tbase_unit = tbase_us;
+        duration_scaled = duration * 1E6;
+    } else if (duration < 1) {
+        tbase_unit = tbase_ms;
+        duration_scaled = duration * 1E3;
+    }
+
+    snprintf(s, PLOT_LABEL_MAXLEN, "%'lu samples @ %.02f %s (%.2f %s)",
+        nsamples, sampfreq_scaled, unit_ratemega, duration_scaled, tbase_unit);
+}
+
+static void plot_from_acap(struct cap_analog *acap, struct plot **plot)
+{
+    struct plot *pl;
+    char plot_title[PLOT_LABEL_MAXLEN];
     uint16_t smin, smax;
+    uint64_t offset;
+    uint64_t nsamples;
     adc_cal_t *cal;
 
-    p = plot_create();
+    pl = plot_create();
 
     /* Set the y-axis scales to the voltage range */
     smin = cap_analog_get_sample_min(acap);
     smax = cap_analog_get_sample_max(acap);
     cal = cap_analog_get_cal(acap);
+    pl->ymin = adc_sample_to_voltage(smin, cal);
+    pl->ymax = adc_sample_to_voltage(smax, cal);
 
-    p->ymin = adc_sample_to_voltage(smin, cal);
-    p->ymax = adc_sample_to_voltage(smax, cal);
-    p->len = idx_end - idx_begin;
+    nsamples = cap_get_nsamples((cap_t *) acap);
+    offset = cap_get_offset((cap_t *) acap);
+    pl->x = calloc(nsamples, sizeof(double));
+    pl->y = calloc(nsamples, sizeof(double));
+    pl->len = nsamples;
 
-    p->x = calloc(p->len, sizeof(double));
-    p->y = calloc(p->len, sizeof(double));
-
-    // extract x / y from acaps
-    for (uint64_t i = idx_begin, j = 0; i < idx_end; i++, j++) {
+    for (uint64_t i = 0, j = offset; i < nsamples; i++, j++) {
         uint16_t sample = cap_analog_get_sample(acap, i);
         float v = adc_sample_to_voltage(sample, cal);
-        // FIXME: the array needs to start at zero even if the indices do not!
-        p->x[j] = (idx_begin + j);
-        p->y[j] = v;
+        pl->x[i] = j;
+        pl->y[i] = v;
     }
+    plot_set_xlabel(pl, "Sample");
+    plot_set_ylabel(pl, "Volts");
+    sprint_plot_cap_title((cap_t *) acap, plot_title);
+    plot_set_title(pl, plot_title);
 
-    // call plot create
-    *plot = p;
+    *plot = pl;
 }
 
 void plot_to_wxwidgets(struct plot *p)
@@ -82,28 +122,31 @@ void plot_to_cairo_surface(struct plot *p, cairo_surface_t *cs)
 {
     cairo_t *c;
     int w, h;
-
+    char res_str[] = "XXXXxYYYY";
     c = cairo_create(cs);
     w = cairo_image_surface_get_width(cs);
     h = cairo_image_surface_get_height(cs);
 
-//    cairo_scale(c, w, h);
+    //cairo_scale(c, 1.0/w, 1.0/h);
     cairo_set_source_rgba(c, 0, 0, 0, 1.0);
     cairo_fill(c);
     cairo_paint(c);
 
+    sprintf(res_str, "%dx%d", w, h);
     plsdev("extcairo");
+    plsetopt("geometry", res_str);
     plsetopt("drvopt", "rasterize_image");
     //plsdev("wxwidgets");
     plinit();
     pl_cmd(PLESC_DEVINIT, c);
     plenv(p->x[0], p->x[p->len - 1], p->ymin, p->ymax + (p->ymax / 10), 0, 0);
-//    pllab(p->xlabel, p->ylabel, p->title);
+    plcol0(2);
+    pllab(p->xlabel, p->ylabel, p->title);
     plcol0(3);
     plline(p->len, (PLFLT *) p->x, (PLFLT *) p->y);
     plend();
     cairo_surface_flush(cs);
-//    cairo_destroy(c);
+    cairo_destroy(c);
 }
 
 /* Function: plot_create

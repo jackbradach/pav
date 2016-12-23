@@ -21,10 +21,13 @@
  */
 #include <assert.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "adc.h"
 #include "cap.h"
 #include "queue.h"
+
+#define CAP_MAX_NOTE_LEN 64
 
 enum cap_types {
     CAP_TYPE_INVALID = 0,
@@ -34,8 +37,11 @@ enum cap_types {
 
 struct cap {
     TAILQ_ENTRY(cap) entry;
-    char *note[64];
+    /* Parent for a subcap (NULL for top level) */
+    struct cap *parent;
+    char note[64];
     uint64_t nsamples;
+    uint64_t offset;
     uint8_t physical_ch;
     float period;
     enum cap_types type;
@@ -581,4 +587,68 @@ void cap_analog_set_cal(struct cap_analog *acap, float vmin, float vmax)
 adc_cal_t *cap_analog_get_cal(struct cap_analog *acap)
 {
     return acap->cal;
+}
+
+void cap_set_offset(struct cap *cap, uint64_t offset)
+{
+    cap->offset = offset;
+}
+
+uint64_t cap_get_offset(cap_t *cap)
+{
+    return cap->offset;
+}
+
+const char *cap_get_note(cap_t *cap)
+{
+    return (const char *) &cap->note;
+}
+
+void cap_set_note(cap_t *cap, const char *note)
+{
+    strncpy(cap->note, note, CAP_MAX_NOTE_LEN);
+}
+
+/* Function: cap_create_subcap
+ *
+ * Creates a subcapture, which is a structure containing a
+ * slice of the samples in the parent structure.  It should be
+ * treated identically to a normal capture structure and needs to
+ * be dropref'd when done for garbage collection.
+ */
+cap_t *cap_create_subcap(struct cap *cap, uint64_t begin, uint64_t end)
+{
+    struct cap *c;
+    size_t len = end - begin;
+
+    /* Clone the analog or digital structure as appropriate. */
+    if (CAP_TYPE_ANALOG == cap->type) {
+        struct cap_analog *ac;
+        ac = cap_analog_create(len);
+        memcpy(ac->samples, ((struct cap_analog *) cap)->samples, len * sizeof(uint16_t));
+        /* Note that we don't update the min/max
+         * on a subcap; it should be the same as the parent!
+         */
+        ac->sample_min = cap_analog_get_sample_min((cap_analog_t *) cap);
+        ac->sample_max = cap_analog_get_sample_max((cap_analog_t *) cap);
+        ac->cal = cap_analog_get_cal((cap_analog_t *) cap);
+
+        /* Update the digital view for the subcapture. */
+        adc_acap_ttl(ac);
+        c = (cap_t *) ac;
+    } else {
+        struct cap_digital *dc;
+        dc = cap_digital_create(len);
+        memcpy(dc->samples, ((struct cap_digital *) cap)->samples, len * sizeof(uint32_t));
+        c = (cap_t *) dc;
+    }
+
+    /* Copy the rest of the capture structure data */
+    c->parent = cap_addref(cap);
+    cap_set_note(c, cap_get_note(cap));
+    c->physical_ch = cap->physical_ch;
+    c->period = cap->period;
+    c->offset = begin + cap->offset;
+
+    return c;
 }
