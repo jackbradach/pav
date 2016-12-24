@@ -22,8 +22,11 @@ if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
     set(CMAKE_C_FLAGS "${DEFAULT_C_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS}")
     enable_testing()
-else()
+elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set (CMAKE_C_FLAGS "${DEFAULT_C_FLAGS} -g -O3")
+    set (CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS}")
+else()
+    set (CMAKE_C_FLAGS "${DEFAULT_C_FLAGS} -O3")
     set (CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS}")
 endif()
 
@@ -36,9 +39,11 @@ add_subdirectory(src)
 add_subdirectory(tests)
 
 # Build documentation
+if (0) # tie to build type!
 include(build_naturaldocs)
 build_naturaldocs(${CMAKE_PROJECT_NAME}
     ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_BINARY_DIR}/doc
+    ${CMAKE_CURRENT_BINARY_DIR}/ref
     ${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/nd
 )
+endif()

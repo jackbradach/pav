@@ -15,6 +15,7 @@ static void set_defaults(struct pav_opts *args);
 static error_t parse_opt (int key, char *arg, struct argp_state *state);
 static void set_op(struct argp_state *state, enum pav_op op);
 static bool opts_valid(struct pav_opts *opts);
+static void find_demo_capture(struct pav_opts *opts);
 
 enum opt_keys {
         OPT_KEY_INVALID = 1,
@@ -157,6 +158,10 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
         break;
 
     case ARGP_KEY_END:
+        if (!opts->fin) {
+            find_demo_capture(opts);
+        }
+
         if (!opts_valid(opts)) {
             argp_state_help(state, stderr, ARGP_HELP_STD_HELP);
             exit(EXIT_FAILURE);
@@ -204,4 +209,24 @@ static void set_op(struct argp_state *state, enum pav_op mode)
     }
 
     opts->op = mode;
+}
+
+static void find_demo_capture(struct pav_opts *opts)
+{
+    const char demo_path[] = "/usr/share/doc/pav/captures/";
+    const char demo_file[] = "uart_analog_115200_50mHz.bin.gz";
+    char full[512] = {0};
+    FILE *fp;
+
+    strncat(full, demo_path, 512);
+    strncat(full, demo_file, 512);
+
+    fp = fopen(full, "rb");
+    if (!fp) {
+        printf("Unable to find demo capture at < %s >\n", full);
+        return;
+    }
+
+    opts->fin = fp;
+    strncpy(opts->fin_name, demo_file, 512);
 }

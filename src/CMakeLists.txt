@@ -40,3 +40,38 @@ set(BINARY_NAME pav)
 add_library(${LIBRARY_NAME} ${SRC_LIBRARY})
 add_executable(${BINARY_NAME} ${SRC_MAIN})
 target_link_libraries(${BINARY_NAME} ${LIBRARY_NAME} ${LIBS})
+
+
+# Strip symbols for release
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_custom_command(TARGET ${BINARY_NAME}
+        POST_BUILD
+        COMMAND strip -s ${EXECUTABLE_OUTPUT_PATH}/${BINARY_NAME}
+    )
+endif()
+
+
+
+# Debian packager for releases
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+
+install(TARGETS ${BINARY_NAME}
+        RUNTIME
+        DESTINATION bin
+)
+
+set(EXAMPLES
+    ${CMAKE_SOURCE_DIR}/tests/captures
+)
+
+install(DIRECTORY ${EXAMPLES}
+    DESTINATION share/doc/${CMAKE_PROJECT_NAME}
+    COMPONENT examples
+)
+
+set(CPACK_GENERATOR "DEB")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Jack Bradach <jack@bradach.net>")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "zlib1g, libc6, libsdl2-2.0-0, libplplot12, libcairo2")
+set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE amd64)
+include(CPack)
+endif()

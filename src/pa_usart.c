@@ -587,14 +587,12 @@ static void fprintf_indent(FILE *fp, size_t n, const char *s)
 
 void fprint_symbols(FILE *fp, struct pa_usart_ctx *ctx, size_t wout, size_t tab)
 {
-    char tmpstr[wout + 1];
     char *symbols;
     uint64_t nsymbols;
     uint64_t i = 0;
 
     fprintf_linebreak(fp, wout, '-');
     fprintf_center(fp, wout, "[ Symbols Received ]\n");
-    snprintf(tmpstr, wout, "< %s >\n", pa_usart_get_desc(ctx));
     nsymbols = pa_usart_get_decoded(ctx, &symbols);
 
     while (i < nsymbols) {
@@ -618,7 +616,7 @@ void fprint_symbols(FILE *fp, struct pa_usart_ctx *ctx, size_t wout, size_t tab)
 
 void pa_usart_fprint_report(FILE *fp, struct pa_usart_ctx *ctx)
 {
-    const size_t wout = 64; /* Output width */
+    const size_t wout = 72; /* Output width */
     const size_t tab = 4; /* Tab width */
     char tmpstr[wout + 1];
     double elapsed;

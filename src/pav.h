@@ -19,8 +19,8 @@ enum pav_op {
 struct pav_opts {
     FILE *fin;
     FILE *fout;
-    char fin_name[64];
-    char fout_name[64];
+    char fin_name[512];
+    char fout_name[512];
     enum pav_op op;
     unsigned loops;
     uint64_t range_begin;

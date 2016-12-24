@@ -72,3 +72,13 @@ if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
     )
     add_dependencies(coverage check)
 endif()
+
+# Tarball up coverage results
+if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
+set(CPACK_GENERATOR "TGZ")
+set(CPACK_SOURCE_INSTALLED_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR}/cov/)
+set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-coverage")
+include(CPack)
+#add_dependencies(package, coverage)
+
+endif()
