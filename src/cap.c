@@ -166,7 +166,6 @@ struct cap_analog *cap_analog_create(size_t len)
     return cap;
 }
 
-
 /* Function: cap_addref
  *
  * Adds a reference to a capture structure and returns a pointer

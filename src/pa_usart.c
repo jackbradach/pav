@@ -640,6 +640,7 @@ void pa_usart_fprint_report(FILE *fp, struct pa_usart_ctx *ctx)
     snprintf(tmpstr, wout, "Average Rate: %.02e samples/s\n",
         ctx->decode_cnt/elapsed);
     fprintf_indent(fp, tab, tmpstr);
+    fprint_symbols(fp, ctx, wout, tab);
 }
 
 void pa_usart_set_desc(struct pa_usart_ctx *c, const char *s)
