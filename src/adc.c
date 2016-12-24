@@ -42,28 +42,6 @@ struct adc_cal {
     double vmax;
 };
 
-struct adc_cal *adc_cal_create(float vmin, float vmax)
-{
-    struct adc_cal *cal = calloc(1, sizeof(struct adc_cal));
-    cal->vmin = vmin;
-    cal->vmax = vmax;
-    return cal;
-}
-
-double adc_cal_get_vmin(adc_cal_t *cal)
-{
-    return cal->vmin;
-}
-
-double adc_cal_get_vmax(adc_cal_t *cal)
-{
-    return cal->vmax;
-}
-
-
-/* Static prototypes */
-//static int adc_convert(struct cap_analog *acap, struct cap_digital **dcap, uint16_t v_lo, uint16_t v_hi);
-
 /* From Saleae's website */
 float adc_sample_to_voltage(uint16_t sample, struct adc_cal *cal)
 {
@@ -93,85 +71,22 @@ uint16_t adc_voltage_to_sample(float voltage, struct adc_cal *cal)
     return adc_raw;
 }
 
-void adc_acap_ttl(struct cap_analog *acap)
+
+
+struct adc_cal *adc_cal_create(float vmin, float vmax)
 {
-    const uint16_t ttl_low = adc_voltage_to_sample(0.8f, cap_analog_get_cal(acap));
-    const uint16_t ttl_high = adc_voltage_to_sample(2.0f, cap_analog_get_cal(acap));
-    adc_acap(acap, ttl_low, ttl_high);
+    struct adc_cal *cal = calloc(1, sizeof(struct adc_cal));
+    cal->vmin = vmin;
+    cal->vmax = vmax;
+    return cal;
 }
 
-void adc_acap(struct cap_analog *acap, uint16_t v_lo, uint16_t v_hi)
+double adc_cal_get_vmin(adc_cal_t *cal)
 {
-    unsigned nsamples;
-    struct cap_digital *dcap;
-
-    /* Shred any existing digital capture */
-    // TODO - 2016/12/17 - jbradach - this probably ought to allow merging
-    // TODO - with existing digital samples.  Also, any 'updating' is really
-    // TODO - more abandoning the old dcap (it'll be freed if no one holds a
-    // TODO - handle) and creating a new one.  This'll make copying them around
-    // TODO - less of a headache.
-    nsamples = cap_get_nsamples((cap_t *) acap);
-    dcap = cap_digital_create(nsamples);
-
-    for (uint64_t i = 0; i < nsamples; i++) {
-        static uint8_t digital = 0;
-        /* Digital samples only change when crossing the voltage
-         * thresholds.
-         */
-        uint16_t ch_sample = cap_analog_get_sample(acap, i);
-        if (ch_sample <= v_lo) {
-            digital = 0;
-        } else if (ch_sample >= v_hi) {
-            digital = 1;
-        }
-        cap_digital_set_sample(dcap, i, digital);
-    }
-
-    cap_analog_set_dcap(acap, dcap);
+    return cal->vmin;
 }
 
-// FIXME: update these to use the new analog capture and bundle formats.
-#if 0
-int adc_ttl_convert(struct cap_analog *acap, struct cap_digital **dcap)
+double adc_cal_get_vmax(adc_cal_t *cal)
 {
-    const uint16_t ttl_low = adc_voltage_to_sample(0.8f, acap->cal);
-    const uint16_t ttl_high = adc_voltage_to_sample(2.0f, acap->cal);
-    return adc_convert(acap, dcap, ttl_low, ttl_high);
+    return cal->vmax;
 }
-
-// TODO - rewrite this so you give it a bundle and it updates the digital channels
-// TODO - with the ADC from the analog.  Need to have a way to prevent an
-// TODO - unrelated analog channel from being included!
-static int adc_convert(struct cap_analog *acap, struct cap_digital **udcap, uint16_t v_lo, uint16_t v_hi)
-{
-    uint32_t digital;
-    struct cap_digital *dcap;
-
-    /* Allocate a cap_digital structure with the same parameters
-     * of the cap_analog
-     */
-    dcap = calloc(1, sizeof(struct cap_digital));
-    dcap->nsamples = acap->nsamples;
-    dcap->period = acap->period;
-    dcap->samples = calloc(dcap->nsamples, sizeof(uint32_t));
-
-    digital = 0;
-    for (uint64_t idx = 0; idx < acap->nsamples; idx++) {
-        for (uint16_t ch = 0; ch < acap->nchannels; ch++) {
-            /* Digital samples only change when crossing the voltage
-             * thresholds.
-             */
-            uint16_t ch_sample = acap->samples[ch][idx];
-            if (ch_sample <= v_lo) {
-                digital &= ~(1 << ch);
-            } else if (ch_sample >= v_hi) {
-                digital |= (1 << ch);
-            }
-        }
-        dcap->samples[idx] = digital;
-    }
-
-    *udcap = dcap;
-}
-#endif

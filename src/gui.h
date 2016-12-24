@@ -2,11 +2,10 @@
 #define _GUI_H_
 
 #include <SDL2/SDL.h>
+#include "pav.h"
 
 typedef struct gui gui_t;
 
-void gui_init(gui_t **ugui);
-void gui_draw(gui_t *gui);
-SDL_Texture *gui_get_texture(struct gui *gui);
+void gui_start(struct pav_opts *opts);
 
 #endif

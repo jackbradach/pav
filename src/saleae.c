@@ -44,10 +44,10 @@ void saleae_import_analog(FILE *fp, struct cap_bundle **new_bundle)
         cap_set_physical_ch((cap_t *) acap, ch);
         cap_set_period((cap_t *) acap, hdr->sample_period);
         import_analog_channel(abuf, ch, acap);
-        cap_set_analog_minmax(acap);
+        cap_analog_set_minmax(acap);
 
         /* Make a digital version of the analog capture */
-        adc_acap_ttl(acap);
+        cap_analog_adc_ttl(acap);
         cap_bundle_add(bun, (cap_t *) acap);
     }
 

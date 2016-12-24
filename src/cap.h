@@ -39,10 +39,17 @@ typedef struct cap cap_t;
 
 #include "adc.h"
 
+uint64_t cap_find_next_edge(cap_t *cap, uint64_t from);
+uint64_t cap_find_prev_edge(cap_t *cap, uint64_t from);
+
 /* Analog Capture Utilities */
-cap_t *cap_create_subcap(cap_t *cap, uint64_t begin, uint64_t end);
+cap_t *cap_create_subcap(cap_t *cap, int64_t begin, int64_t end);
+int cap_subcap_nparents(cap_t *cap);
+cap_t *cap_subcap_get_top(cap_t *c);
 void cap_analog_ch_copy(cap_analog_t *acap, uint8_t from, uint32_t to);
-void cap_set_analog_minmax(cap_analog_t *acap);
+void cap_analog_set_minmax(cap_analog_t *acap);
+void cap_analog_adc(cap_analog_t *acap, uint16_t v_lo, uint16_t v_hi);
+void cap_analog_adc_ttl(cap_analog_t *acap);
 
 /* Digital Capture Utilities */
 void cap_digital_ch_copy(cap_digital_t *dcap, uint8_t from, uint32_t to);
@@ -58,6 +65,7 @@ void cap_set_offset(cap_t *cap, uint64_t offset);
 uint64_t cap_get_offset(cap_t *cap);
 const char *cap_get_note(cap_t *cap);
 void cap_set_note(cap_t *cap, const char *note);
+cap_t *cap_get_parent(cap_t *cap);
 
 
 void cap_set_physical_ch(cap_t *cap, uint8_t ch);
@@ -67,8 +75,9 @@ float cap_get_period(cap_t *cap);
 
 cap_analog_t *cap_analog_create(size_t len);
 cap_analog_t *cap_get_analog(cap_t *cap);
-void cap_analog_set_dcap(cap_analog_t *acap, cap_digital_t *dcap);
 void cap_analog_set_sample(cap_analog_t *acap, uint64_t idx, uint16_t sample);
+cap_digital_t *cap_analog_get_digital(cap_t *cap);
+
 uint16_t cap_analog_get_sample(cap_analog_t *acap, uint64_t idx);
 uint16_t cap_analog_get_sample_min(cap_analog_t *acap);
 uint16_t cap_analog_get_sample_max(cap_analog_t *acap);

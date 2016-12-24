@@ -21,6 +21,7 @@
  */
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "adc.h"
@@ -80,60 +81,8 @@ static void cap_analog_free(struct cap_analog *acap);
 static void cap_digital_free(struct cap_digital *dcap);
 static void cap_bundle_free(const struct refcnt *ref);
 
-#if 0
-
-/* Function: cap_analog_ch_copy
- *
- * Replicates the data from a source channel to targets, specified by mask.
- * Each channel consumes uint16_t * nsamples of memory.
- * TODO - 2016/12/12 - jbradach - make this more efficient by setting up aliases
- * TODO - that map logical channels to physical ones.
- *
- * Parameters:
- *      from - channel ID for source data_valid
- *      to - 32-bit mask specifying destination channels.  This mask must not
- *          include the source channel!
- */
-void cap_analog_ch_copy(struct cap_analog *acap, uint8_t from, uint32_t to)
-{
-    assert(from < 32);
-    assert((1 << from) & to);
-
-    // TODO - finish me!
-    abort();
-    for (uint64_t i = 0; i < acap->nsamples; i++) {
-    }
-}
-
-/* Function: cap_digital_ch_copy
- *
- * Replicates the data from a source channel to targets, specified by mask.
- * This is "free" memory-wise, as internally digital captures are saved
- * as a 32-bit mask representing the channels.
- *
- * Parameters:
- *      from - channel ID for source data_valid
- *      to - 32-bit mask specifying destination channels.  This mask must not
- *          include the source channel!
- */
-void cap_digital_ch_copy(struct cap_digital *dcap, uint8_t from, uint32_t to)
-{
-    assert(from < 32);
-    assert((1 << from) & to);
-
-    for (uint64_t i = 0; i < dcap->nsamples; i++) {
-        uint32_t tmp = dcap->samples[i] &= ~to;
-
-        if (dcap->samples[i] & (1 << from)) {
-            tmp |= dcap->samples[i];
-        }
-        dcap->samples[i] = tmp;
-    }
-}
-#endif
-
 /* Populates the min/max fields of an acap */
-void cap_set_analog_minmax(struct cap_analog *acap)
+void cap_analog_set_minmax(struct cap_analog *acap)
 {
     uint16_t min = 4095;
     uint16_t max = 0;
@@ -153,6 +102,43 @@ void cap_set_analog_minmax(struct cap_analog *acap)
 
     acap->sample_min = min;
     acap->sample_max = max;
+}
+
+void cap_analog_adc_ttl(struct cap_analog *acap)
+{
+    const uint16_t ttl_low = adc_voltage_to_sample(0.8f, acap->cal);
+    const uint16_t ttl_high = adc_voltage_to_sample(2.0f, acap->cal);
+    cap_analog_adc(acap, ttl_low, ttl_high);
+}
+
+void cap_analog_adc(struct cap_analog *acap, uint16_t v_lo, uint16_t v_hi)
+{
+    unsigned nsamples;
+    struct cap_digital *dcap;
+
+    nsamples = cap_get_nsamples((cap_t *) acap);
+    dcap = cap_digital_create(nsamples);
+
+    for (uint64_t i = 0; i < nsamples; i++) {
+        static uint8_t digital = 0;
+        /* Digital samples only change when crossing the voltage
+         * thresholds.
+         */
+        uint16_t ch_sample = cap_analog_get_sample(acap, i);
+        if (ch_sample <= v_lo) {
+            digital = 0;
+        } else if (ch_sample >= v_hi) {
+            digital = 1;
+        }
+        dcap->samples[i] = digital;
+    }
+
+    /* Shred any existing digital capture */
+    if (acap->dcap) {
+        cap_dropref((cap_t *) acap->dcap);
+    }
+
+    acap->dcap = dcap;
 }
 
 /* Function: cap_analog_create
@@ -497,30 +483,7 @@ uint32_t cap_digital_get_sample(cap_digital_t *dcap, uint64_t idx)
     return dcap->samples[idx];
 }
 
-struct cap_digital *cap_get_digital(struct cap *cap)
-{
-    struct cap_digital *dcap;
-    if (CAP_TYPE_DIGITAL == cap->type) {
-        dcap = (struct cap_digital *) cap_addref(cap);
-    } else if (CAP_TYPE_ANALOG == cap->type) {
-        struct cap_analog *acap = (struct cap_analog *) cap;
-        dcap = (struct cap_digital *) cap_addref((cap_t *) acap->dcap);
-    } else {
-        dcap = NULL;
-    }
-    return dcap;
-}
 
-struct cap_analog *cap_get_analog(struct cap *cap)
-{
-    struct cap_analog *acap;
-    if (CAP_TYPE_ANALOG == cap->type) {
-        acap = (struct cap_analog *) cap_addref(cap);
-    } else {
-        acap = NULL;
-    }
-    return acap;
-}
 
 uint16_t cap_analog_get_sample(struct cap_analog *acap, uint64_t idx)
 {
@@ -616,16 +579,24 @@ void cap_set_note(cap_t *cap, const char *note)
  * treated identically to a normal capture structure and needs to
  * be dropref'd when done for garbage collection.
  */
-cap_t *cap_create_subcap(struct cap *cap, uint64_t begin, uint64_t end)
+cap_t *cap_create_subcap(struct cap *cap, int64_t begin, int64_t end)
 {
     struct cap *c;
     size_t len = end - begin;
 
+    if (begin < 0)
+        begin = 0;
+
+    if (end >= cap->nsamples)
+        end = cap->nsamples - 1;
+
     /* Clone the analog or digital structure as appropriate. */
     if (CAP_TYPE_ANALOG == cap->type) {
         struct cap_analog *ac;
+        struct cap_analog *ac_src = (struct cap_analog *) cap;
         ac = cap_analog_create(len);
-        memcpy(ac->samples, ((struct cap_analog *) cap)->samples, len * sizeof(uint16_t));
+        memcpy(ac->samples, ac_src->samples + (begin * sizeof(uint16_t)), len * sizeof(uint16_t));
+
         /* Note that we don't update the min/max
          * on a subcap; it should be the same as the parent!
          */
@@ -634,12 +605,13 @@ cap_t *cap_create_subcap(struct cap *cap, uint64_t begin, uint64_t end)
         ac->cal = cap_analog_get_cal((cap_analog_t *) cap);
 
         /* Update the digital view for the subcapture. */
-        adc_acap_ttl(ac);
+        cap_analog_adc_ttl(ac);
         c = (cap_t *) ac;
     } else {
         struct cap_digital *dc;
+        struct cap_digital *dc_src = (struct cap_digital *) cap;
         dc = cap_digital_create(len);
-        memcpy(dc->samples, ((struct cap_digital *) cap)->samples, len * sizeof(uint32_t));
+        memcpy(dc->samples, dc_src->samples + (begin * sizeof(uint8_t)), len * sizeof(uint32_t));
         c = (cap_t *) dc;
     }
 
@@ -651,4 +623,80 @@ cap_t *cap_create_subcap(struct cap *cap, uint64_t begin, uint64_t end)
     c->offset = begin + cap->offset;
 
     return c;
+}
+
+struct cap *cap_get_parent(struct cap *c)
+{
+    return c->parent;
+}
+
+struct cap *cap_subcap_get_top(struct cap *cap)
+{
+    struct cap *c = cap;
+
+    while (NULL != c->parent) {
+        c = c->parent;
+    }
+    return c;
+}
+
+int cap_subcap_nparents(struct cap *cap)
+{
+    struct cap *c = cap;
+    int nparents = 0;
+
+    while (NULL != c->parent) {
+        nparents++;
+        c = c->parent;
+    }
+    return nparents;
+}
+
+uint64_t cap_find_next_edge(struct cap *cap, uint64_t from)
+{
+    struct cap_digital *dc;
+    uint64_t next;
+
+    dc = cap_get_digital(cap);
+
+    for (next = from + 1; next < cap->nsamples; next++) {
+        if (dc->samples[from] != dc->samples[next]) {
+            printf("next edge @ %lu (+%lu)\n",
+                next, next - from);
+            break;
+        }
+    }
+    return next;
+}
+
+uint64_t cap_find_prev_edge(struct cap *cap, uint64_t from)
+{
+    struct cap_digital *dc;
+    uint64_t prev = from;
+
+    /* Can't pan at the highest zoom. */
+    if (!cap->parent)
+        return cap->nsamples / 2;
+
+    dc = cap_get_digital(cap);
+
+    for (prev = from - 1; prev > 0; prev--) {
+        if (dc->samples[from] != dc->samples[prev])
+            break;
+    }
+    return prev;
+}
+
+struct cap_analog *cap_get_analog(struct cap *cap)
+{
+    if (CAP_TYPE_DIGITAL == cap->type)
+        return NULL;
+    return (struct cap_analog *) cap;
+}
+
+cap_digital_t *cap_get_digital(struct cap *cap)
+{
+    if (CAP_TYPE_DIGITAL == cap->type)
+        return (struct cap_digital *) cap;
+    return ((struct cap_analog *) cap)->dcap;
 }
