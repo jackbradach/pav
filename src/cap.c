@@ -227,6 +227,12 @@ void cap_dropref(struct cap *c)
             refcnt_dec(&dcap->rcnt);
         }
     }
+
+    if (c->parent) {
+        cap_dropref(c->parent);
+        c->parent = NULL;
+    }
+
     refcnt_dec(&c->rcnt);
 }
 
@@ -595,7 +601,7 @@ cap_t *cap_create_subcap(struct cap *cap, int64_t begin, int64_t end)
         struct cap_analog *ac;
         struct cap_analog *ac_src = (struct cap_analog *) cap;
         ac = cap_analog_create(len);
-        memcpy(ac->samples, ac_src->samples + (begin * sizeof(uint16_t)), len * sizeof(uint16_t));
+        memcpy(ac->samples, ac_src->samples + begin, len * sizeof(uint16_t));
 
         /* Note that we don't update the min/max
          * on a subcap; it should be the same as the parent!
@@ -611,7 +617,7 @@ cap_t *cap_create_subcap(struct cap *cap, int64_t begin, int64_t end)
         struct cap_digital *dc;
         struct cap_digital *dc_src = (struct cap_digital *) cap;
         dc = cap_digital_create(len);
-        memcpy(dc->samples, dc_src->samples + (begin * sizeof(uint8_t)), len * sizeof(uint32_t));
+        memcpy(dc->samples, dc_src->samples + (cap->offset + begin) * sizeof(uint8_t), len * sizeof(uint32_t));
         c = (cap_t *) dc;
     }
 
@@ -661,8 +667,6 @@ uint64_t cap_find_next_edge(struct cap *cap, uint64_t from)
 
     for (next = from + 1; next < cap->nsamples; next++) {
         if (dc->samples[from] != dc->samples[next]) {
-            printf("next edge @ %lu (+%lu)\n",
-                next, next - from);
             break;
         }
     }
@@ -673,10 +677,6 @@ uint64_t cap_find_prev_edge(struct cap *cap, uint64_t from)
 {
     struct cap_digital *dc;
     uint64_t prev = from;
-
-    /* Can't pan at the highest zoom. */
-    if (!cap->parent)
-        return cap->nsamples / 2;
 
     dc = cap_get_digital(cap);
 

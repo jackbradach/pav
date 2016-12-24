@@ -21,6 +21,7 @@ struct plot {
     double *x, *y;
     double ymin, ymax;
     unsigned long len;
+    long idx_selected;
     char xlabel[PLOT_LABEL_MAXLEN];
     char ylabel[PLOT_LABEL_MAXLEN];
     char title[PLOT_LABEL_MAXLEN];
@@ -63,6 +64,7 @@ static void plot_from_acap(struct cap_analog *acap, struct plot **plot)
     pl->x = calloc(nsamples, sizeof(double));
     pl->y = calloc(nsamples, sizeof(double));
     pl->len = nsamples;
+    pl->idx_selected = nsamples / 2;
 
     for (uint64_t i = 0, j = offset; i < nsamples; i++, j++) {
         uint16_t sample = cap_analog_get_sample(acap, i);
@@ -122,7 +124,6 @@ void plot_to_cairo_surface(struct plot *pl, cairo_surface_t *cs)
     sprintf(res_str, "%dx%d", w, h);
     plsdev("extcairo");
     plsetopt("geometry", res_str);
-    plsetopt("drvopt", "rasterize_image");
     plinit();
     pl_cmd(PLESC_DEVINIT, c);
     plenv(pl->x[0], pl->x[pl->len - 1], pl->ymin, pl->ymax + (pl->ymax / 10), 0, 0);
@@ -130,6 +131,11 @@ void plot_to_cairo_surface(struct plot *pl, cairo_surface_t *cs)
     pllab(pl->xlabel, pl->ylabel, pl->title);
     plcol0(3);
     plline(pl->len, (PLFLT *) pl->x, (PLFLT *) pl->y);
+    plcol0(10);
+    {
+        PLFLT x = pl->x[pl->idx_selected];
+        pljoin(x, pl->ymin, x, 2 * pl->ymax);
+    }
     plend();
     cairo_surface_flush(cs);
     cairo_destroy(c);

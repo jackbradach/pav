@@ -50,7 +50,7 @@ void gui_start(struct pav_opts *opts)
     gui_import_file(gui, opts->fin);
     gui_plot_all(gui);
 
-    gui->cap = cap_bundle_first(gui->bundle);
+    gui->cap = cap_addref(cap_bundle_first(gui->bundle));
 
     /* Blocking */
     while (!gui->quit) {
@@ -80,120 +80,142 @@ void gui_plot_all(struct gui *g)
 
 void gui_zoom_in(struct gui *g)
 {
-    cap_t *c, *sc;
+    cap_t *sc, *top;
     plot_t *pl;
     uint64_t z0, z1;
 
-    c = g->cap;
+    top = cap_subcap_get_top(g->cap);
 
-    z0 = (cap_get_nsamples(c) / 4);
-    z1 = (cap_get_nsamples(c) - z0);
+    z0 = (cap_get_nsamples(g->cap) / 4);
+    z1 = (cap_get_nsamples(g->cap) - z0);
+    z0 += cap_get_offset(g->cap);
+    z1 += cap_get_offset(g->cap);
 
     printf("Zoom in: %'lu samples centered @ %'lu\n", z1 - z0, (z1 - z0) / 2);
-    sc = cap_create_subcap(c, z0, z1);
+
+    sc = cap_create_subcap(top, z0, z1);
     plot_from_cap(sc, &pl);
-    plot_to_texture(pl, g->texture);
-    plot_dropref(pl);
-
-    /* Replace active capture */
-    //cap_dropref(g->cap);
-    g->cap = sc;
-}
-
-void gui_zoom_out(struct gui *g)
-{
-    cap_t *c, *sc;
-    plot_t *pl;
-    int64_t z0, z1;
-
-    c = cap_get_parent(g->cap);
-
-    /* If there's no parent, this is the top-level zoom! */
-    if (NULL == c) {
-        printf("Unable to zoom out further (Top)!\n");
-        return;
-    }
-#if 0
-    printf("offset: %lu\n", cap_get_offset(sc));
-    z0 = (cap_get_nsamples(sc) / 2);
-    z1 = z0 + (cap_get_nsamples(sc));
-
-    printf("z0: %ld z1: %ld\n", z0, z1);
-    z0 -= cap_get_offset(sc);
-    z1 += cap_get_offset(sc);
-
-    printf("-samples: %lu tgt: %ld off: %lu z0: %ld z1: %ld\n",
-        cap_get_nsamples(sc), (z1 - z0), cap_get_offset(sc), z0, z1);
-#endif
-    z0 = cap_get_offset(c);
-    z1 = cap_get_offset(c) + cap_get_nsamples(c);
-    printf("Zoom out: %'lu samples centered @ %'lu\n", z1 - z0, (z1 - z0) / 2);
-    plot_from_cap(c, &pl);
     plot_to_texture(pl, g->texture);
     plot_dropref(pl);
 
     /* Replace active capture */
     cap_dropref(g->cap);
-    g->cap = c;
+    g->cap = sc;
+}
+
+void gui_zoom_out(struct gui *g)
+{
+    cap_t *parent, *top, *cap;
+    plot_t *pl;
+    int64_t z0, z1, zoom_gran;
+
+    parent = cap_get_parent(g->cap);
+    top = cap_subcap_get_top(g->cap);
+
+    /* If there's no parent, this is the top-level zoom! */
+    if (!parent) {
+        printf("Unable to zoom out further (Top)!\n");
+        return;
+    }
+
+    zoom_gran = cap_get_nsamples(g->cap) / 2;
+    z0 = cap_get_offset(g->cap) - zoom_gran;
+    z1 = cap_get_offset(g->cap) + cap_get_nsamples(g->cap) + zoom_gran;
+
+    if (z0 < 0) {
+        z0 = 0;
+    }
+
+    if (z1 > (cap_get_nsamples(top) - 1)) {
+        z1 = cap_get_nsamples(top) - 1;
+    }
+
+    printf("Zoom out: %'lu samples centered @ %'lu\n", z1 - z0, (z1 - z0) / 2);
+    if ((z0 == 0) && (z1 == (cap_get_nsamples(top) - 1))) {
+        cap = top;
+    } else {
+        printf("Using subcap!\n");
+        cap = cap_create_subcap(top, z0, z1);
+    }
+
+    plot_from_cap(cap, &pl);
+    plot_to_texture(pl, g->texture);
+    plot_dropref(pl);
+
+    /* Replace active capture */
+    // FIXME - jbradach - 2016/12/24 - this is leaking memory, need to
+    // have it *not* drop all references to the top!
+    // cap_dropref(g->cap);
+    g->cap = cap;
 }
 
 void gui_pan_left(struct gui *g)
 {
-    cap_t *old, *top, *sc;
+    cap_t *top, *sc, *parent;
     plot_t *pl;
-    uint64_t mid, from, prev;
+    int64_t mid, from, prev;
 
-    old = g->cap;
-    top = cap_subcap_get_top(old);
+    parent = cap_get_parent(g->cap);
+    top = cap_subcap_get_top(g->cap);
 
     /* Can't pan at the highest zoom. */
-    if (top == old)
+    if (!parent) {
+        printf("Can't pan at top-level (try zooming in!)\n");
         return;
+    }
 
     /* Figure out where the next edge is.  We have to translate our current
      * midpoint to the location in the parent.
      */
-    mid = cap_get_nsamples(old) / 2;
-    from = mid + cap_get_offset(old);
+    mid = cap_get_nsamples(g->cap) / 2;
+    from = mid + cap_get_offset(g->cap);
     prev = cap_find_prev_edge(top, from);
 
     /* If the next edge is near the boundary of the capture, don't shift. */
     if ((prev - mid) < 0) {
+        printf("*BUMP* (No more left to pan!)\n");
         return;
     }
 
-    sc = cap_create_subcap(top, prev - mid, prev + mid);
+    printf("Prev edge @ %'lu\n", prev);
+
+    sc = cap_create_subcap(parent, prev - mid, prev + mid);
     plot_from_cap(sc, &pl);
     plot_to_texture(pl, g->texture);
     plot_dropref(pl);
 
     /* Replace active capture */
+    cap_dropref(g->cap);
     g->cap = sc;
-    cap_dropref(old);
 }
 
 void gui_pan_right(struct gui *g)
 {
-    cap_t *old, *top, *sc;
+    cap_t *top, *sc, *parent;
     plot_t *pl;
-    uint64_t mid, next, from;
+    int64_t mid, next, from;
 
-    old = g->cap;
-    top = cap_subcap_get_top(old);
+    parent = cap_get_parent(g->cap);
+    top = cap_subcap_get_top(g->cap);
 
     /* Can't pan at the highest zoom. */
-    if (top == old)
+    if (!parent) {
+        printf("Can't pan at top-level (try zooming in!)\n");
         return;
+    }
 
     /* Figure out where the next edge is.  We have to translate our current
      * midpoint to the location in the parent.
      */
-    mid = cap_get_nsamples(old) / 2 + cap_get_offset(old);
-    next = cap_find_next_edge(top, mid);
+    mid = cap_get_nsamples(g->cap) / 2;
+    from = mid + cap_get_offset(g->cap);
+    next = cap_find_next_edge(top, from);
+
+    printf("Next edge @ %'lu\n", next);
 
     /* If the next edge is near the boundary of the capture, don't shift. */
-    if ((next + mid) > (cap_get_nsamples(top))) {
-        printf("*BUMP*\n");
+    if ((next + mid) >= (cap_get_nsamples(top) - 1)) {
+        printf("*BUMP* (No more right to pan!)\n");
         return;
     }
 
@@ -203,10 +225,8 @@ void gui_pan_right(struct gui *g)
     plot_dropref(pl);
 
     /* Replace active capture */
+    cap_dropref(g->cap);
     g->cap = sc;
-    cap_dropref(old);
-
-    printf("Right!\n");
 }
 
 static void init_sdl(struct gui *gui)
