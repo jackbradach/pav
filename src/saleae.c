@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,17 +22,18 @@ struct __attribute__((__packed__)) saleae_analog_header {
 /* Local prototypes */
 static void mmap_file(FILE *fp, void **buf, size_t *length);
 static void import_analog_channel(void *abuf, unsigned ch, cap_analog_t *acap);
-static void inflate_buffer(void **buf, size_t *buf_len);
+static bool inflate_buffer(void *src, size_t src_len, void **dst, size_t *dst_len);
 
 void saleae_import_analog(FILE *fp, struct cap_bundle **new_bundle)
 {
-    void *abuf;
-    size_t abuf_len;
+    void *fbuf, *abuf;
+    size_t fbuf_len, abuf_len;
     struct cap_bundle *bun;
     struct saleae_analog_header *hdr;
+    bool compressed;
 
-    mmap_file(fp, &abuf, &abuf_len);
-    inflate_buffer(&abuf, &abuf_len);
+    mmap_file(fp, &fbuf, &fbuf_len);
+    compressed = inflate_buffer(fbuf, fbuf_len, &abuf, &abuf_len);
     hdr = (struct saleae_analog_header *) abuf;
     assert(hdr->channel_count > 0 && hdr->channel_count <= 16);
 
@@ -49,8 +51,13 @@ void saleae_import_analog(FILE *fp, struct cap_bundle **new_bundle)
         cap_bundle_add(bun, (cap_t *) acap);
     }
 
-    /* Unmap the capture file. */
-    munmap(abuf, abuf_len);
+    /* Unmap the capture file and free the memory allocated if it
+     * was compressed.
+     */
+    munmap(fbuf, fbuf_len);
+    if (compressed) {
+        free(abuf);
+    }
 
     *new_bundle = bun;
 }
@@ -69,14 +76,14 @@ static void import_analog_channel(void *abuf, unsigned ch, cap_analog_t *acap)
 
 int saleae_import_digital(FILE *fp, size_t sample_width, float freq, cap_digital_t **dcap)
 {
-    void *dbuf;
-    size_t dbuf_len;
+    void *fbuf, *dbuf;
+    size_t fbuf_len, dbuf_len;
     cap_digital_t *d;
     uint64_t nsamples;
-    int rc;
+    bool compressed;
 
-    mmap_file(fp, &dbuf, &dbuf_len);
-    inflate_buffer(&dbuf, &dbuf_len);
+    mmap_file(fp, &fbuf, &fbuf_len);
+    compressed = inflate_buffer(fbuf, fbuf_len, &dbuf, &dbuf_len);
 
     nsamples = dbuf_len / sample_width;
 
@@ -87,7 +94,11 @@ int saleae_import_digital(FILE *fp, size_t sample_width, float freq, cap_digital
         cap_digital_set_sample(d, i, ((uint32_t *) dbuf)[i]);
     }
 
-    munmap(dbuf, dbuf_len);
+    munmap(fbuf, fbuf_len);
+    if (compressed) {
+        free(dbuf);
+    }
+
     *dcap = d;
 
     return 0;
@@ -113,15 +124,13 @@ static void mmap_file(FILE *fp, void **buf, size_t *len)
  * doesn't contain a GZIP image, it'll be left untouched.  Otherwise,
  * buf and buf_len will be replaced with the decompressed image.
  */
-static void inflate_buffer(void **buf, size_t *buf_len)
+static bool inflate_buffer(void *src, size_t src_len, void **dst, size_t *dst_len)
 {
-    size_t dst_len = 4 * (1 << 20); // start with 4 megabytes
-    void *dst = malloc(dst_len);
+    size_t buf_len = 4 * (1 << 20); // start with 4 megabytes
+    void *buf = calloc(buf_len, sizeof(uint8_t));
     z_stream strm  = {
-        .next_in = (Bytef *) *buf,
-        .avail_in = *buf_len,
-        .next_out = (Bytef *) dst,
-        .avail_out = dst_len,
+        .next_in = (Bytef *) src,
+        .avail_in = src_len,
     };
 
     int rc;
@@ -132,11 +141,13 @@ static void inflate_buffer(void **buf, size_t *buf_len)
      */
     rc = inflateInit2(&strm, (15 + 32));
     if (Z_OK != rc) {
-        return;
+        return false;
     }
 
     for (int retries = 10; retries > 0; retries--) {
-        dst = realloc(dst, dst_len);
+        buf = realloc(buf, buf_len);
+        strm.next_out = (Bytef *) buf;
+        strm.avail_out = buf_len;
         rc = inflate(&strm, Z_FINISH);
         assert(rc != Z_STREAM_ERROR);
 
@@ -144,13 +155,18 @@ static void inflate_buffer(void **buf, size_t *buf_len)
             break;
         } else if (Z_BUF_ERROR == rc) {
             /* Bump the decompression buffer size */
-            dst_len *= 2;
+            buf_len *= 2;
         } else {
             /* Not compressed! */
             inflateEnd(&strm);
-            return;
+            free(buf);
+            *dst = src;
+            *dst_len = src_len;
+            return false;
         }
     }
-    *buf = realloc(dst, strm.total_out);
-    *buf_len = strm.total_out;
+
+    *dst = realloc(buf, strm.total_out);
+    *dst_len = strm.total_out;
+    return true;
 }

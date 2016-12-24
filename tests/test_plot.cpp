@@ -69,7 +69,7 @@ TEST(Plot, PlotFromAnalogCap) {
 
     cap = cap_bundle_first(b);
 
-    plot_from_cap(cap, 0, cap_get_nsamples(cap), &p);
+    plot_from_cap(cap, &p);
     cap_bundle_dropref(b);
 
     plot_dropref(p);
@@ -86,7 +86,7 @@ TEST(Plot, DISABLED_PlotToWxwidgets) {
     saleae_import_analog(fp, &b);
     cap = cap_bundle_first(b);
 
-    plot_from_cap(cap, 0, cap_get_nsamples(cap), &p);
+    plot_from_cap(cap, &p);
     cap_bundle_dropref(b);
 
     plot_to_wxwidgets(p);
@@ -105,7 +105,7 @@ TEST(Plot, PlotToCairoSurface) {
     saleae_import_analog(fp, &b);
     cap = cap_bundle_first(b);
 
-    plot_from_cap(cap, 0, cap_get_nsamples(cap), &p);
+    plot_from_cap(cap, &p);
     cap_bundle_dropref(b);
 
     cs = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 640, 480);

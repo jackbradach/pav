@@ -12,6 +12,7 @@ enum pav_op {
     PAV_OP_INVALID = 0,
     PAV_OP_DECODE,
     PAV_OP_PLOTPNG,
+    PAV_OP_GUI,
     PAV_OP_VERSION
 };
 

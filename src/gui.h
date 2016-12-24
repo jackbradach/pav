@@ -3,10 +3,10 @@
 
 #include <SDL2/SDL.h>
 
-typedef struct gui_ctx gui_ctx_t;
+typedef struct gui gui_t;
 
-void gui_init(gui_ctx_t **uctx);
-void gui_draw(gui_ctx_t *gui);
-SDL_Texture *gui_get_texture(struct gui_ctx *gui);
+void gui_init(gui_t **ugui);
+void gui_draw(gui_t *gui);
+SDL_Texture *gui_get_texture(struct gui *gui);
 
 #endif

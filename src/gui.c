@@ -8,10 +8,10 @@
 
 #include "gui.h"
 
-const unsigned GUI_WIDTH = 640;
-const unsigned GUI_HEIGHT = 480;
+const unsigned GUI_WIDTH = 1024;
+const unsigned GUI_HEIGHT = 768;
 
-struct gui_ctx {
+struct gui {
     SDL_Window *window;
 	SDL_Renderer *renderer;
     SDL_Texture *texture;
@@ -19,41 +19,12 @@ struct gui_ctx {
 };
 
 
-SDL_Texture *gui_get_texture(struct gui_ctx *gui)
+SDL_Texture *gui_get_texture(struct gui *g)
 {
-    return gui->texture;
+    return g->texture;
 }
 
-//
-static void cairo_draw_texture(SDL_Texture *texture)
-{
-    cairo_surface_t *cairo_surface;
-    cairo_t *cairo_ctx;
-    void *pixels;
-    int pitch;
-    int w, h;
-
-    SDL_QueryTexture(texture, NULL, NULL, &w, &h);
-
-    SDL_LockTexture(texture, NULL, &pixels, &pitch);
-    cairo_surface = cairo_image_surface_create_for_data(
-                        pixels, CAIRO_FORMAT_ARGB32,
-                        w, h, pitch);
-    cairo_ctx = cairo_create (cairo_surface);
-    cairo_surface_destroy (cairo_surface);
-    cairo_scale (cairo_ctx, w, h);
-//    draw (cairo_ctx);
-    SDL_UnlockTexture(texture);
-    cairo_destroy (cairo_ctx);
-}
-
-static uint32_t cb_gui_repaint(uint32_t interval, void *param)
-{
-
-}
-
-
-static int init_sdl(struct gui_ctx *gui)
+static int init_sdl(struct gui *gui)
 {
     SDL_Window *window;
     SDL_Renderer *renderer;
@@ -94,20 +65,20 @@ static int init_sdl(struct gui_ctx *gui)
 }
 
 // XXX - this can eventually walk a list to assemble a 'scene'
-void gui_draw(struct gui_ctx *gui)
+void gui_draw(struct gui *gui)
 {
     SDL_RenderClear(gui->renderer);
     SDL_RenderCopy(gui->renderer, gui->texture, NULL, NULL);
     SDL_RenderPresent(gui->renderer);
 }
 
-void gui_init(struct gui_ctx **ugui)
+void gui_init(struct gui **ugui)
 {
-    struct gui_ctx *gui;
+    struct gui *gui;
 
     int rc;
 
-    gui = calloc(1, sizeof(struct gui_ctx));
+    gui = calloc(1, sizeof(struct gui));
     rc = init_sdl(gui);
     assert (rc >= 0);
 

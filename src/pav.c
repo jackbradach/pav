@@ -89,7 +89,30 @@ void do_plot_capture_to_png(struct pav_opts *opts)
     plot_to_cairo_surface(pl, cs);
     cairo_surface_write_to_png(cs, "test.png");
     cairo_surface_destroy(cs);
+    cap_dropref(pl_cap);
 }
+
+void do_gui(struct pav_opts *opts)
+{
+    cap_bundle_t *bun;
+    cap_t *cap;
+    plot_t *pl;
+    gui_t *gui;
+
+    gui_init(&gui);
+
+    /* Import capture and plot to a Cairo surface*/
+    saleae_import_analog(opts->fin, &bun);
+    cap = cap_bundle_first(bun);
+
+    plot_from_cap(cap, &pl);
+    plot_to_texture(pl, gui_get_texture(gui));
+    gui_draw(gui);
+    sleep(1);
+    plot_dropref(pl);
+    cap_bundle_dropref(bun);
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -107,6 +130,10 @@ int main(int argc, char *argv[])
 
         case PAV_OP_PLOTPNG:
             do_plot_capture_to_png(&opts);
+            break;
+
+        case PAV_OP_GUI:
+            do_gui(&opts);
             break;
 
         case PAV_OP_INVALID:

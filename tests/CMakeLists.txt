@@ -18,6 +18,11 @@ find_package(ZLIB REQUIRED)
 include_directories(${ZLIB_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${ZLIB_LIBRARIES})
 
+find_package(SDL2 REQUIRED)
+include_directories(${SDL2_INCLUDE_DIR})
+set(LIBS ${LIBS} ${SDL2_LIBRARY})
+
+
 set(TEST_SRCS
     tests.cpp
     test_adc.cpp

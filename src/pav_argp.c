@@ -20,6 +20,7 @@ enum opt_keys {
         OPT_KEY_INVALID = 1,
         OPT_KEY_DECODE,
         OPT_KEY_PLOTPNG,
+        OPT_KEY_GUI,
         OPT_KEY_VERSION = 'V',
         OPT_KEY_VERBOSE = 'v',
         OPT_KEY_IN_FILENAME = 'i',
@@ -40,6 +41,7 @@ static struct argp_option options[] =
     {0, 0, 0, OPTION_DOC, "Commands:", OPT_GROUP_COMMAND},
     {"decode", OPT_KEY_DECODE, 0, 0, "Decode a USART capture"},
     {"plotpng", OPT_KEY_PLOTPNG, 0, 0, "Plot an analog capture to a PNG"},
+    {"gui", OPT_KEY_GUI, 0, 0, "Interactive GUI mode"},
 
 //    {0, 0, 0, OPTION_DOC, "Requireds:", OPT_GROUP_REQUIRED},
 
@@ -103,6 +105,10 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 
     case OPT_KEY_PLOTPNG:
         set_op(state, PAV_OP_PLOTPNG);
+        break;
+
+    case OPT_KEY_GUI:
+        set_op(state, PAV_OP_GUI);
         break;
 
     case OPT_KEY_RANGE_BEGIN:

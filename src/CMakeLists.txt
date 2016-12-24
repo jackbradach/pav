@@ -1,5 +1,3 @@
-
-
 find_package(Cairo REQUIRED)
 include_directories(${CAIRO_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${CAIRO_LIBRARIES})
@@ -12,6 +10,10 @@ find_package(ZLIB REQUIRED)
 include_directories(${ZLIB_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${ZLIB_LIBRARIES})
 
+find_package(SDL2 REQUIRED)
+include_directories(${SDL2_INCLUDE_DIR})
+set(LIBS ${LIBS} ${SDL2_LIBRARY})
+
 # Source containing 'main()'
 set(SRC_MAIN
     pav.c
@@ -22,6 +24,7 @@ set(SRC_MAIN
 set(SRC_LIBRARY
     adc.c
     cap.c
+    gui.c
     pa_spi.c
     pa_usart.c
     pav_argp.c
@@ -33,7 +36,6 @@ set(SRC_LIBRARY
 
 set(LIBRARY_NAME protoval)
 set(BINARY_NAME pav)
-message("BUILD_SHARED_LIBS: ${BUILD_SHARED_LIBS}")
 
 add_library(${LIBRARY_NAME} ${SRC_LIBRARY})
 add_executable(${BINARY_NAME} ${SRC_MAIN})
