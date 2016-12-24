@@ -21,7 +21,7 @@ struct plot {
     double *x, *y;
     double ymin, ymax;
     unsigned long len;
-    long idx_selected;
+    int64_t reticle;
     char xlabel[PLOT_LABEL_MAXLEN];
     char ylabel[PLOT_LABEL_MAXLEN];
     char title[PLOT_LABEL_MAXLEN];
@@ -45,6 +45,7 @@ void plot_from_cap(cap_t *cap, struct plot **plot)
 static void plot_from_acap(struct cap_analog *acap, struct plot **plot)
 {
     struct plot *pl;
+    char str_label[PLOT_LABEL_MAXLEN];
     uint16_t smin, smax;
     uint64_t offset;
     uint64_t nsamples;
@@ -64,7 +65,6 @@ static void plot_from_acap(struct cap_analog *acap, struct plot **plot)
     pl->x = calloc(nsamples, sizeof(double));
     pl->y = calloc(nsamples, sizeof(double));
     pl->len = nsamples;
-    pl->idx_selected = nsamples / 2;
 
     for (uint64_t i = 0, j = offset; i < nsamples; i++, j++) {
         uint16_t sample = cap_analog_get_sample(acap, i);
@@ -72,7 +72,10 @@ static void plot_from_acap(struct cap_analog *acap, struct plot **plot)
         pl->x[i] = j;
         pl->y[i] = v;
     }
-    plot_set_xlabel(pl, "Sample");
+
+    snprintf(str_label, PLOT_LABEL_MAXLEN, "Sample @ %'lu = %.02f V",
+        (nsamples / 2) + offset, pl->y[nsamples/2]);
+    plot_set_xlabel(pl, str_label);
     plot_set_ylabel(pl, "Volts");
     sprint_plot_cap_title((cap_t *) acap, pl->title);
 
@@ -112,6 +115,8 @@ void plot_to_cairo_surface(struct plot *pl, cairo_surface_t *cs)
     cairo_t *c;
     int w, h;
     char res_str[] = "XXXXxYYYY";
+    PLFLT x_ret = pl->x[pl->reticle];
+
     c = cairo_create(cs);
     w = cairo_image_surface_get_width(cs);
     h = cairo_image_surface_get_height(cs);
@@ -131,11 +136,13 @@ void plot_to_cairo_surface(struct plot *pl, cairo_surface_t *cs)
     pllab(pl->xlabel, pl->ylabel, pl->title);
     plcol0(3);
     plline(pl->len, (PLFLT *) pl->x, (PLFLT *) pl->y);
-    plcol0(10);
-    {
-        PLFLT x = pl->x[pl->idx_selected];
-        pljoin(x, pl->ymin, x, 2 * pl->ymax);
-    }
+
+    /* Draw reticle */
+    plcol0(12);
+    pljoin(x_ret, pl->ymin, x_ret, 2 * pl->ymax);
+
+    plstring(1, &x_ret, &pl->y[pl->reticle], "X");
+
     plend();
     cairo_surface_flush(cs);
     cairo_destroy(c);
@@ -294,147 +301,12 @@ const char *plot_get_title(struct plot *p)
     return p->title;
 }
 
-
-
-#if 0
-void plot_analog_cap_sdl(SDL_Texture *texture, struct cap_analog *acap, unsigned idx_start, unsigned idx_end);
-void plot_analog_cap_cairo(cairo_surface_t *surface, struct cap_analog *acap, unsigned idx_start, unsigned idx_end);
-
-void plot_analog_cap(struct cap_analog *acap, unsigned idx_start, unsigned idx_end)
+void plot_set_reticle(struct plot *p, int64_t idx)
 {
-    float vmin, vmax;
-    uint16_t min, max;
-    PLFLT *x, *y;
-    PLFLT xmin, ymin, xmax, ymax;
-
-    vmin = adc_sample_to_voltage(acap->sample_min, acap->cal);
-    vmax = adc_sample_to_voltage(acap->sample_max, acap->cal);
-    printf("Min: %d (%02fV)\n", min, vmin);
-    printf("Max: %d (%02fV)\n", max, vmax);
-
-    x = calloc(acap->nsamples, sizeof(PLFLT));
-    y = calloc(acap->nsamples, sizeof(PLFLT));
-
-    xmin = 0;
-    ymin = vmin;
-    xmax = (idx_end - idx_start);
-    ymax = vmax;
-
-    for (uint64_t i = idx_start, j = 0; i < idx_end; i++, j++) {
-        // FIXME: the array needs to start at zero even if the indices do not!
-        x[j] = (PLFLT) (idx_start + j);
-        y[j] = adc_sample_to_voltage(acap->samples[i], acap->cal);
-    }
-
-    plsdev("wxwidgets");
-    plinit();
-    plenv(idx_start, idx_end, ymin, ymax + (ymax / 10), 0, 0);
-    pllab("sample", "Voltage", "Analog Sample");
-    plcol0(3);
-    plline((idx_end - idx_start), x, y);
-    plend();
-    free(x);
-    free(y);
-}
-#endif
-
-
-#if 0
-
-void plot_analog_cap_gui(struct gui_ctx *gui, struct cap_analog *acap, unsigned idx_start, unsigned idx_end)
-{
-    plot_analog_cap_sdl(gui_get_texture(gui), acap, idx_start, idx_end);
+    p->reticle = idx;
 }
 
-
-void plot_analog_cap_sdltex(struct cap_analog *acap, unsigned idx_start, unsigned idx_end, SDL_Texture **texture)
+int64_t plot_get_reticle(struct plot *p)
 {
-    int w, h;
-    SDL_Surface *ss;
-    cairo_surface_t *cs;
-
-    SDL_QueryTexture(texture, NULL, NULL, &w, &h);
-
-    ss = SDL_CreateRGBSurface (
-        0, w, h, 32,
-        0x000000FF, /* Red channel mask */
-        0x0000FF00, /* Green channel mask */
-        0x00FF0000, /* Blue channel mask */
-        0xFF000000); /* Alpha channel mask */
-
-
-    SDL_LockTexture(texture, NULL, &ss->pixels, &ss->pitch);
-    cs = cairo_image_surface_create_for_data(
-            ss->pixels, CAIRO_FORMAT_ARGB32,
-            ss->w, ss->h, ss->pitch);
-
-    assert(cairo_surface_status(cs) == CAIRO_STATUS_SUCCESS);
-    cairo_surface_set_user_data(cs, &CAIRO_SURFACE_TARGET_KEY, ss, NULL );
-
-    //plot_analog_cap_cairo(cs, acap, idx_start, idx_end);
-    cairo_t *cairo;
-    cairo = cairo_create(cs);
-    cairo_scale(cairo, w, h);
-    cairo_set_source_rgba (cairo, 1, 0.2, 0.2, 0.6);
-    cairo_fill(cairo);
-
-    cairo_surface_flush(cs);
-    cairo_surface_destroy(cs);
-    SDL_UnlockTexture(texture);
-    cairo_destroy(cairo);
+    return p->reticle;
 }
-
-void plot_analog_cap_cairo(cairo_surface_t *surface, struct cap_analog *acap, unsigned idx_start, unsigned idx_end)
-{
-    float vmin, vmax;
-    uint16_t min, max;
-    PLFLT *x, *y;
-    PLFLT xmin, ymin, xmax, ymax;
-    int w, h;
-
-    cairo_t *cairo;
-
-    w = cairo_image_surface_get_width(surface);
-    h = cairo_image_surface_get_height(surface);
-
-    cairo = cairo_create(surface);
-    cairo_scale(cairo, w, h);
-    cairo_set_source_rgba (cairo, 1, 0.2, 0.2, 0.6);
-    cairo_fill(cairo);
-    return;
-    //    draw (cairo_ctx);
-
-
-    // TODO: Should have a function that preps a "plot" structure
-    // TODO: with enough info to easily switch backends.
-    vmin = adc_sample_to_voltage(acap->sample_min, acap->cal);
-    vmax = adc_sample_to_voltage(acap->sample_max, acap->cal);
-
-    x = calloc(acap->nsamples, sizeof(PLFLT));
-    y = calloc(acap->nsamples, sizeof(PLFLT));
-
-    xmin = 0;
-    ymin = vmin;
-    xmax = (idx_end - idx_start);
-    ymax = vmax;
-
-    for (uint64_t i = idx_start, j = 0; i < idx_end; i++, j++) {
-        x[j] = (PLFLT) (idx_start + j);
-        y[j] = adc_sample_to_voltage(acap->samples[i], acap->cal);
-    }
-
-    plsdev("extcairo");
-    plinit();
-    pl_cmd(PLESC_DEVINIT, cairo);
-    plenv(idx_start, idx_end, ymin, ymax + (ymax / 10), 0, 0);
-    pllab("sample", "Voltage", "Analog Sample");
-    plcol0(3);
-    plline((idx_end - idx_start), x, y);
-    plend();
-
-    free(x);
-    free(y);
-    //cairo_destroy(cairo);
-}
-
-#endif

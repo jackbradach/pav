@@ -27,6 +27,9 @@ void plot_set_xlabel(plot_t *p, const char *xlabel);
 void plot_set_ylabel(plot_t *p, const char *ylabel);
 void plot_set_title(plot_t *p, const char *title);
 
+void plot_set_reticle(plot_t *p, int64_t idx);
+int64_t plot_get_reticle(struct plot *p);
+
 const char *plot_get_xlabel(plot_t *p);
 const char *plot_get_ylabel(plot_t *p);
 const char *plot_get_title(plot_t *p);
