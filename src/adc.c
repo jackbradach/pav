@@ -71,8 +71,6 @@ uint16_t adc_voltage_to_sample(float voltage, struct adc_cal *cal)
     return adc_raw;
 }
 
-
-
 struct adc_cal *adc_cal_create(float vmin, float vmax)
 {
     struct adc_cal *cal = calloc(1, sizeof(struct adc_cal));

@@ -31,7 +31,6 @@ set(SRC_LIBRARY
     plot.c
     proto.c
     saleae.c
-    sstreamer.c
 )
 
 set(LIBRARY_NAME protoval)

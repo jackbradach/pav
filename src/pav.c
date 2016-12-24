@@ -1,6 +1,6 @@
 /* File: pav.c
  *
- * Protocol Analyzer Validation - main entry point.
+ * Protocol Analyzer Viewer - main entry point.
  *
  * Author: Jack Bradach <jack@bradach.net>
  *
@@ -19,7 +19,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include <assert.h>
 #include <fcntl.h>
 #include <locale.h>
