@@ -35,7 +35,7 @@
 #include "saleae.h"
 #include "plot.h"
 
-#include "pav.h"
+#include "gui/pav_gui.h"
 
 extern void parse_cmdline(int argc, char *argv[], struct pav_opts *opts);
 
@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
             break;
 
         case PAV_OP_GUI:
-            gui_start(&opts);
+            pav_gui_start(&opts);
             break;
 
         case PAV_OP_INVALID:

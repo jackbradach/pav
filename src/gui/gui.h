@@ -23,10 +23,27 @@
 #define _GUI_H_
 
 #include <SDL2/SDL.h>
+
+#include "cap.h"
 #include "pav.h"
 
+struct gui {
+    SDL_Window *window;
+	SDL_Renderer *renderer;
+    // TODO - drop texture and have a 'render list' instead
+    SDL_Texture *texture;
+    bool quit;
+    struct pav_opts *opts;
+    cap_bundle_t *bundle;
+
+    /* Visible capture */
+    cap_t *cap;
+};
 typedef struct gui gui_t;
 
 void gui_start(struct pav_opts *opts);
-
+gui_t *gui_get_instance(void);
+void gui_quit(void);
+bool gui_active(void);
+void gui_draw(void);
 #endif

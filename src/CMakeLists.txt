@@ -24,13 +24,22 @@ set(SRC_MAIN
 set(SRC_LIBRARY
     adc.c
     cap.c
-    gui.c
     pa_spi.c
     pa_usart.c
     pav_argp.c
     plot.c
     proto.c
     saleae.c
+    gui/display.c
+    gui/pav_gui.c
+    gui/gui.c
+    gui/gui_event.c
+    gui/gui_plot.c
+)
+
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/gui
 )
 
 set(LIBRARY_NAME protoval)

@@ -25,7 +25,6 @@
 #include <string.h>
 
 #include "cap.h"
-#include "gui.h"
 #include "refcnt.h"
 
 #include <SDL2/SDL.h>

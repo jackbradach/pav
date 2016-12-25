@@ -30,11 +30,9 @@ extern "C" {
 #include "cairo/cairo.h"
 
 #include "cap.h"
-#include "gui.h"
 
 typedef struct plot plot_t;
 void plot_from_cap(cap_t *cap, plot_t **plot);
-void plot_analog_cap_gui(gui_t *gui, struct cap_analog *acap, unsigned idx_start, unsigned idx_end);
 void plot_to_wxwidgets(plot_t *p);
 void plot_to_cairo_surface(plot_t *pl, cairo_surface_t *cs);
 void plot_to_texture(plot_t *pl, SDL_Texture *txt);
