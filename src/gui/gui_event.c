@@ -115,6 +115,21 @@ static void process_keyboard_input(SDL_KeyboardEvent *key)
         case SDLK_RIGHT:
             views_pan_right(gui->view_active);
             break;
+        case SDLK_UP: {
+            if (gui->view_active == TAILQ_FIRST(gui->views)) {
+                gui->view_active = TAILQ_LAST(gui->views, ch_view_list);
+            } else {
+                gui->view_active = TAILQ_PREV(gui->view_active, ch_view_list, entry);
+            }
+            break;
+        }
+        case SDLK_DOWN:
+            if (gui->view_active == TAILQ_LAST(gui->views, ch_view_list)) {
+                gui->view_active = TAILQ_FIRST(gui->views);
+            } else {
+                gui->view_active = TAILQ_NEXT(gui->view_active, entry);
+            }
+            break;
         }
         break;
     case SDL_KEYUP:

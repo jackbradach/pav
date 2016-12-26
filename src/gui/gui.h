@@ -47,9 +47,6 @@ struct gui {
 
     cap_bundle_t *bundle;
 
-    /* Visible capture */
-    cap_t *cap;
-
 };
 typedef struct gui gui_t;
 

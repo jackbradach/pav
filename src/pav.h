@@ -43,9 +43,11 @@ struct pav_opts {
     char fin_name[512];
     char fout_name[512];
     enum pav_op op;
-    unsigned loops;
+    unsigned nloops;
     uint64_t range_begin;
     uint64_t range_end;
+    uint64_t duplicate;
+    uint64_t skew_us;
     bool verbose;
 };
 

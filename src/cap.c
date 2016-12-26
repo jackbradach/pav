@@ -67,10 +67,7 @@ struct cap_digital {
 struct cap_bundle {
     struct refcnt rcnt;
     struct cap_list head;
-    void (*add)(struct cap_bundle *bundle, cap_t *cap);
-    void (*remove)(struct cap_bundle *bundle, cap_t *cap);
-    cap_t *(*get)(struct cap_bundle *bundle, unsigned idx);
-    unsigned (*len)(struct cap_bundle *bundle);
+    unsigned len;
 };
 
 /* Static prototypes - these get automatically called by
@@ -139,6 +136,27 @@ void cap_analog_adc(struct cap_analog *acap, uint16_t v_lo, uint16_t v_hi)
     }
 
     acap->dcap = dcap;
+}
+
+
+void cap_clone_channel_to_bundle(struct cap_bundle *bun, struct cap_analog *src, unsigned nloops, unsigned skew_us)
+{
+    struct cap_analog *dst;
+    unsigned src_len = src->super.nsamples;
+    unsigned dst_len = src_len * nloops;
+    unsigned skew = (skew_us * 1E-6) / src->super.period;
+
+    dst = cap_analog_create(dst_len);
+    dst->super.period = src->super.period;
+    dst->sample_min = src->sample_min;
+    dst->sample_max = src->sample_max;
+    dst->cal = src->cal;
+
+    for (unsigned i = 0; i < dst_len; i++) {
+        dst->samples[i] = src->samples[(i + skew) % src_len];
+    }
+    cap_analog_adc_ttl(dst);
+    cap_bundle_add(bun, (cap_t *) dst);
 }
 
 /* Function: cap_analog_create
@@ -461,6 +479,11 @@ static void cap_bundle_free(const struct refcnt *ref)
     free(b);
 }
 
+unsigned cap_bundle_len(struct cap_bundle *b)
+{
+    return b->len;
+}
+
 void cap_analog_set_dcap(struct cap_analog *acap, cap_digital_t *dcap)
 {
     if (acap->dcap)
@@ -528,6 +551,7 @@ float cap_get_period(cap_t *cap)
 void cap_bundle_add(struct cap_bundle *b, struct cap *c)
 {
     TAILQ_INSERT_TAIL(&b->head, c, entry);
+    b->len++;
 }
 
 struct cap *cap_bundle_first(struct cap_bundle *b)

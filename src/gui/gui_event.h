@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "gui.h"
+#include "queue.h"
 
 #ifdef __cplusplus
 extern "C" {

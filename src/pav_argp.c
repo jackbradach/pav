@@ -49,7 +49,10 @@ enum opt_keys {
         OPT_KEY_OUT_FILENAME = 'o',
         OPT_KEY_RANGE_BEGIN = 'b',
         OPT_KEY_RANGE_END = 'e',
-        OPT_KEY_LOOPS = 'c'
+        OPT_KEY_LOOPS = 'l',
+        OPT_KEY_DUPLICATE = 'd',
+        OPT_KEY_SKEW = 's',
+
 };
 
 enum opt_groups {
@@ -68,9 +71,11 @@ static struct argp_option options[] =
 //    {0, 0, 0, OPTION_DOC, "Requireds:", OPT_GROUP_REQUIRED},
 
     {0, 0, 0, OPTION_DOC, "Options:", OPT_GROUP_OPTIONAL},
-    {"loops", OPT_KEY_LOOPS, "COUNT", OPTION_ARG_OPTIONAL, "Loop a capture COUNT times through the decoder", OPT_GROUP_OPTIONAL},
+    {"loops", OPT_KEY_LOOPS, "COUNT", OPTION_ARG_OPTIONAL, "Loop a capture COUNT times when importing", OPT_GROUP_OPTIONAL},
     {"begin", OPT_KEY_RANGE_BEGIN, "IDX", OPTION_ARG_OPTIONAL, "Sample range begin (default zero)", OPT_GROUP_OPTIONAL},
     {"end", OPT_KEY_RANGE_END, "IDX", OPTION_ARG_OPTIONAL, "Sample range end (default last sample)", OPT_GROUP_OPTIONAL},
+    {"duplicate", OPT_KEY_DUPLICATE, "NCHANNELS", OPTION_ARG_OPTIONAL, "Duplicates channel 0 'NCHANNELS' times", OPT_GROUP_OPTIONAL},
+    {"skew", OPT_KEY_SKEW, "NSAMPLES", OPTION_ARG_OPTIONAL, "Skew each channel by CH_NUM * NSAMPLES", OPT_GROUP_OPTIONAL},
     {"verbose", OPT_KEY_VERBOSE, 0, OPTION_ARG_OPTIONAL, "Write additional information to stdout", OPT_GROUP_OPTIONAL},
 
     {0}
@@ -96,9 +101,11 @@ static void set_defaults(struct pav_opts *opts)
 
         opts->fin = NULL;
         opts->fout = NULL;
-        opts->loops = 1;
+        opts->nloops = 1;
         opts->range_begin = 0;
         opts->range_end = 0;
+        opts->skew_us = 0;
+        opts->duplicate = 0;
 
         /* Is the capture file being piped in? */
         if (!isatty(fileno(stdin)))
@@ -141,12 +148,20 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
         opts->range_end = atoll(arg);
         break;
 
+    case OPT_KEY_DUPLICATE:
+        opts->duplicate = atoll(arg);
+        break;
+
+    case OPT_KEY_SKEW:
+        opts->skew_us = atoll(arg);
+        break;
+
     case OPT_KEY_VERBOSE:
         g_verbose = true;
         break;
 
     case OPT_KEY_LOOPS:
-        opts->loops = arg ? atoi(arg) : 1;
+        opts->nloops = arg ? atoi(arg) : 1;
         break;
 
     case ARGP_KEY_ARG:

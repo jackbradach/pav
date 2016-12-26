@@ -55,7 +55,7 @@ void do_usart_decode(struct pav_opts *opts)
 
     cap = cap_bundle_first(bun);
     pa_usart_ctx_set_freq(usart, 1.0f/cap_get_period(cap));
-    for (int i = 0; i < opts->loops; i++) {
+    for (int i = 0; i < opts->nloops; i++) {
         pa_usart_decode_chunk(usart, cap);
     }
 

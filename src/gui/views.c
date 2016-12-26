@@ -3,6 +3,7 @@
 #include "views.h"
 
 void views_add_ch(struct ch_view_list *v, cap_t *c);
+struct ch_view *view_from_ch(cap_t *c);
 
 void views_create_list(struct ch_view_list **l)
 {
@@ -13,43 +14,41 @@ void views_create_list(struct ch_view_list **l)
     *l = views;
 }
 
-void views_populate_from_bundle(cap_bundle_t *b, struct ch_view_list **v)
+void views_populate_from_bundle(cap_bundle_t *b, struct ch_view_list **vl)
 {
     struct gui *g = gui_get_instance();
+    unsigned len = cap_bundle_len(b);
     struct ch_view_list *views;
     cap_t *c;
 
     views_create_list(&views);
 
-    c = cap_bundle_first(g->bundle);
+    c = cap_bundle_first(b);
     while (NULL != c) {
-        views_add_ch(views, c);
+        struct ch_view *v = view_from_ch(c);
+        if (v->txt) {
+            SDL_DestroyTexture(v->txt);
+        }
+        v->txt= SDL_CreateTexture(g->renderer,
+                    SDL_PIXELFORMAT_ARGB8888,
+                    SDL_TEXTUREACCESS_STREAMING,
+                    GUI_WIDTH, GUI_HEIGHT / len);
+        TAILQ_INSERT_TAIL(views, v, entry);
         c = cap_next(c);
     }
 
-    *v = views;
+    *vl = views;
 }
 
-void views_add_ch(struct ch_view_list *vl, cap_t *c)
+struct ch_view *view_from_ch(cap_t *c)
 {
-    struct gui *g = gui_get_instance();
-    struct ch_view *ch;
+    struct ch_view *v;
 
-    ch = calloc(1, sizeof(struct ch_view));
-    ch->cap = cap_addref(c);
-    ch->sample_selected = cap_get_nsamples(c) / 2;
-    plot_from_cap(c, ch->sample_selected, &ch->pl);
-    ch->flags &= ~VIEW_PLOT_DIRTY;
-
-    // TODO - this should probably take a size hint
-    ch->txt = SDL_CreateTexture(g->renderer,
-                SDL_PIXELFORMAT_ARGB8888,
-                SDL_TEXTUREACCESS_STREAMING,
-                GUI_WIDTH, GUI_HEIGHT);
-    plot_to_texture(ch->pl, ch->txt);
-    ch->flags &= ~VIEW_TEXTURE_DIRTY;
-
-    TAILQ_INSERT_TAIL(vl, ch, entry);
+    v = calloc(1, sizeof(struct ch_view));
+    v->cap = cap_addref(c);
+    v->sample_selected = cap_get_nsamples(c) / 2;
+    v->flags |= VIEW_PLOT_DIRTY;
+    return v;
 }
 
 void views_destroy(struct ch_view_list *v)

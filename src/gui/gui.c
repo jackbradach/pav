@@ -74,6 +74,7 @@ bool gui_active(void)
 void gui_start(struct pav_opts *opts)
 {
     struct gui *gui = gui_get_instance();
+    cap_bundle_t *bun = NULL;
     int rc;
 
     gui->opts = opts;
@@ -84,11 +85,19 @@ void gui_start(struct pav_opts *opts)
         return;
     }
 
-    gui_bundle_from_fp(opts->fin, &gui->bundle);
+    gui_bundle_from_fp(opts->fin, &bun);
+    gui->bundle = cap_bundle_create();
+    for (int i = 0; i < opts->duplicate + 1; i++) {
+        cap_t *c = cap_bundle_first(bun);
+        cap_clone_channel_to_bundle(gui->bundle, c, opts->nloops, opts->skew_us);
+    }
+    cap_bundle_dropref(bun);
+
+
+
     views_populate_from_bundle(gui->bundle, &gui->views);
     gui->view_active = TAILQ_FIRST(gui->views);
 
-    gui->cap = cap_addref(cap_bundle_first(gui->bundle));
     gui->quit = false;
 
     display_init();
