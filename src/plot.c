@@ -49,7 +49,7 @@ struct plot {
 };
 
 static void plot_free(const struct refcnt *ref);
-static void plot_from_acap(struct cap_analog *acap, struct plot **plot);
+static void plot_from_acap(struct cap_analog *acap, int64_t idx, struct plot **plot);
 static void sprint_plot_cap_title(cap_t *cap, char *s);
 
 /* Function: plot_from_cap
@@ -57,12 +57,12 @@ static void sprint_plot_cap_title(cap_t *cap, char *s);
  * Creates a plot from a capture structure
  *
  */
-void plot_from_cap(cap_t *cap, struct plot **plot)
+void plot_from_cap(cap_t *cap, int64_t idx, struct plot **plot)
 {
-    plot_from_acap((struct cap_analog *) cap, plot);
+    plot_from_acap((struct cap_analog *) cap, idx, plot);
 }
 
-static void plot_from_acap(struct cap_analog *acap, struct plot **plot)
+static void plot_from_acap(struct cap_analog *acap, int64_t idx, struct plot **plot)
 {
     struct plot *pl;
     char str_label[PLOT_LABEL_MAXLEN];
@@ -93,14 +93,18 @@ static void plot_from_acap(struct cap_analog *acap, struct plot **plot)
         pl->y[i] = v;
     }
 
-    snprintf(str_label, PLOT_LABEL_MAXLEN, "Sample @ %'lu = %.02f V",
-        (nsamples / 2) + offset, pl->y[nsamples/2]);
+    if (idx > 0) {
+        pl->reticle = idx - offset;
+        snprintf(str_label, PLOT_LABEL_MAXLEN, "Sample @ %'lu = %.02f V",
+            idx, pl->y[idx - offset]);
+    }
     plot_set_xlabel(pl, str_label);
     plot_set_ylabel(pl, "Volts");
     sprint_plot_cap_title((cap_t *) acap, pl->title);
 
     *plot = pl;
 }
+
 
 void plot_to_wxwidgets(struct plot *p)
 {

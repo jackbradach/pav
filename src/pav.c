@@ -82,7 +82,7 @@ void do_plot_capture_to_png(struct pav_opts *opts)
         pl_cap = cap;
     }
 
-    plot_from_cap(pl_cap, &pl);
+    plot_from_cap(pl_cap, -1, &pl);
 
     cs = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1024, 768);
     plot_to_cairo_surface(pl, cs);

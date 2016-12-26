@@ -1,4 +1,6 @@
 #include <SDL2/SDL.h>
+
+#include "display.h"
 #include "gui.h"
 #include "gui_plot.h"
 
@@ -101,17 +103,17 @@ static void process_keyboard_input(SDL_KeyboardEvent *key)
             break;
         /* Enbiggen! */
         case SDLK_z:
-            gui_plot_zoom_in(gui);
+            views_zoom_in(gui->view_active);
             break;
         /* Re-smallify */
         case SDLK_x:
-            gui_plot_zoom_out(gui);
+            views_zoom_out(gui->view_active);
             break;
         case SDLK_LEFT:
-            gui_plot_pan_left(gui);
+            views_pan_left(gui->view_active);
             break;
         case SDLK_RIGHT:
-            gui_plot_pan_right(gui);
+            views_pan_right(gui->view_active);
             break;
         }
         break;

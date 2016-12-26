@@ -35,6 +35,8 @@ set(SRC_LIBRARY
     gui/gui.c
     gui/gui_event.c
     gui/gui_plot.c
+    gui/display.c
+    gui/views.c
 )
 
 include_directories(

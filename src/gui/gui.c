@@ -34,14 +34,17 @@
 #include "plot.h"
 #include "saleae.h"
 
+#include "display.h"
 #include "gui.h"
 #include "gui_event.h"
 #include "gui_plot.h"
+#include "views.h"
 
-const unsigned GUI_WIDTH = 1024;
-const unsigned GUI_HEIGHT = 768;
 
-static void gui_import_file(FILE *fp);
+unsigned GUI_WIDTH = 1024;
+unsigned GUI_HEIGHT = 768;
+
+static void gui_bundle_from_fp(FILE *fp, cap_bundle_t **bun);
 static int init_sdl(void);
 
 /* The GUI structure is a singleton; doesn't make much sense to
@@ -81,26 +84,30 @@ void gui_start(struct pav_opts *opts)
         return;
     }
 
-    gui_import_file(opts->fin);
-    gui_plot_all(gui);
+    gui_bundle_from_fp(opts->fin, &gui->bundle);
+    views_populate_from_bundle(gui->bundle, &gui->views);
+    gui->view_active = TAILQ_FIRST(gui->views);
 
     gui->cap = cap_addref(cap_bundle_first(gui->bundle));
     gui->quit = false;
 
-    //display_init();
+    display_init();
 
     /* Blocking */
     gui_event_loop();
 }
 
-static void gui_import_file(FILE *fp)
+/* Create a capture bundle from a file.  If bun points to
+ * an existing bundle, it'll be swapped out and dropreffed.
+ */
+static void gui_bundle_from_fp(FILE *fp, cap_bundle_t **bun)
 {
-    struct gui *g = gui_get_instance();
-    if (g->bundle) {
-        cap_bundle_dropref(g->bundle);
-    }
-
-    saleae_import_analog(fp, &g->bundle);
+    cap_bundle_t *b, *old;
+    old = *bun;
+    saleae_import_analog(fp, &b);
+    // TODO - multithread hazard
+    *bun = b;
+    cap_bundle_dropref(old);
 }
 
 static int init_sdl(void)

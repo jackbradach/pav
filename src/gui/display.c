@@ -6,12 +6,13 @@
 #include <stdlib.h>
 #include <SDL2/SDL.h>
 
-#include "gui.h"
-
 #include "display.h"
+#include "gui.h"
+#include "views.h"
+
 
 const uint32_t refresh_delay_ms = 10;
-uint32_t display_refresh(uint32_t interval, void *param);
+
 
 void display_init(void)
 {
@@ -21,11 +22,17 @@ void display_init(void)
 
 uint32_t display_refresh(uint32_t interval, void *param)
 {
-    struct gui *gui = gui_get_instance();
-    SDL_RenderClear(gui->renderer);
-    // XXX - this can eventually walk a list to assemble a 'scene'
-    SDL_RenderCopy(gui->renderer, gui->texture, NULL, NULL);
-    SDL_RenderPresent(gui->renderer);
-    fflush(stdout);
+    struct gui *g = gui_get_instance();
+    struct ch_view *view;
+
+    SDL_RenderClear(g->renderer);
+
+    TAILQ_FOREACH(view, g->views, entry) {
+        views_refresh(view);
+        SDL_RenderCopy(g->renderer, view->txt, NULL, NULL);
+    }
+
+    SDL_RenderPresent(g->renderer);
+
     return (interval);
 }

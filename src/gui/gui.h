@@ -26,6 +26,13 @@
 
 #include "cap.h"
 #include "pav.h"
+#include "plot.h"
+#include "views.h"
+
+extern unsigned GUI_WIDTH;
+extern unsigned GUI_HEIGHT;
+
+
 
 struct gui {
     SDL_Window *window;
@@ -34,10 +41,15 @@ struct gui {
     SDL_Texture *texture;
     bool quit;
     struct pav_opts *opts;
+
+    struct ch_view_list *views;
+    struct ch_view *view_active;
+
     cap_bundle_t *bundle;
 
     /* Visible capture */
     cap_t *cap;
+
 };
 typedef struct gui gui_t;
 
