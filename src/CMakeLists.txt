@@ -24,6 +24,7 @@ set(SRC_MAIN
 set(SRC_LIBRARY
     adc.c
     cap.c
+    file_utils.c
     pa_spi.c
     pa_usart.c
     pav_argp.c

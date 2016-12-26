@@ -41,6 +41,7 @@ typedef struct cap cap_t;
 
 uint64_t cap_find_next_edge(cap_t *cap, uint64_t from);
 uint64_t cap_find_prev_edge(cap_t *cap, uint64_t from);
+void cap_clone_channel_to_bundle(cap_bundle_t *bun, cap_analog_t *src, unsigned nloops, unsigned skew_us);
 
 /* Analog Capture Utilities */
 cap_t *cap_create_subcap(cap_t *cap, int64_t begin, int64_t end);

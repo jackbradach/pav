@@ -89,7 +89,7 @@ void gui_start(struct pav_opts *opts)
     gui->bundle = cap_bundle_create();
     for (int i = 0; i < opts->duplicate + 1; i++) {
         cap_t *c = cap_bundle_first(bun);
-        cap_clone_channel_to_bundle(gui->bundle, c, opts->nloops, opts->skew_us);
+        cap_clone_channel_to_bundle(gui->bundle, (cap_analog_t *) c, opts->nloops, opts->skew_us);
     }
     cap_bundle_dropref(bun);
 

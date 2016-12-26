@@ -27,12 +27,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/mman.h>
 #include <unistd.h>
 
-#include <zlib.h>
 
 #include "adc.h"
+#include "file_utils.h"
 
 struct __attribute__((__packed__)) saleae_analog_header {
     uint64_t sample_total;
@@ -41,22 +40,29 @@ struct __attribute__((__packed__)) saleae_analog_header {
 };
 
 /* Local prototypes */
-static void mmap_file(FILE *fp, void **buf, size_t *length);
 static void import_analog_channel(void *abuf, unsigned ch, cap_analog_t *acap);
-static bool inflate_buffer(void *src, size_t src_len, void **dst, size_t *dst_len);
 
-void saleae_import_analog(FILE *fp, struct cap_bundle **new_bundle)
+int saleae_import_analog(FILE *fp, struct cap_bundle **new_bundle)
 {
-    void *fbuf, *abuf;
-    size_t fbuf_len, abuf_len;
+    void *abuf;
+    size_t abuf_len;
     struct cap_bundle *bun;
     struct saleae_analog_header *hdr;
-    bool compressed;
+    int rc;
 
-    mmap_file(fp, &fbuf, &fbuf_len);
-    compressed = inflate_buffer(fbuf, fbuf_len, &abuf, &abuf_len);
+    rc = file_load(fp, &abuf, &abuf_len);
+    if (rc) {
+        *new_bundle = NULL;
+        errno = EIO;
+        return -1;
+    }
+
+    /* TODO - better sanity check on header contents */
     hdr = (struct saleae_analog_header *) abuf;
-    assert(hdr->channel_count > 0 && hdr->channel_count <= 16);
+    if (hdr->channel_count > 16) {
+        errno = ENODATA;
+        return -1;
+    }
 
     bun = cap_bundle_create();
 
@@ -72,15 +78,9 @@ void saleae_import_analog(FILE *fp, struct cap_bundle **new_bundle)
         cap_bundle_add(bun, (cap_t *) acap);
     }
 
-    /* Unmap the capture file and free the memory allocated if it
-     * was compressed.
-     */
-    munmap(fbuf, fbuf_len);
-    if (compressed) {
-        free(abuf);
-    }
-
+    free(abuf);
     *new_bundle = bun;
+    return 0;
 }
 
 static void import_analog_channel(void *abuf, unsigned ch, cap_analog_t *acap)
@@ -95,99 +95,32 @@ static void import_analog_channel(void *abuf, unsigned ch, cap_analog_t *acap)
      }
 }
 
+#if 0
+// TODO - need to re-evaluate how digital captures are imported...
 int saleae_import_digital(FILE *fp, size_t sample_width, float freq, cap_digital_t **dcap)
 {
-    void *fbuf, *dbuf;
-    size_t fbuf_len, dbuf_len;
+    void *buf;
+    size_t buf_len;
     cap_digital_t *d;
     uint64_t nsamples;
-    bool compressed;
 
-    mmap_file(fp, &fbuf, &fbuf_len);
-    compressed = inflate_buffer(fbuf, fbuf_len, &dbuf, &dbuf_len);
+    if (file_load(fp, &buf, &buf_len) < 1) {
+        *dcap = NULL;
+        return -1;
+    }
 
-    nsamples = dbuf_len / sample_width;
+    nsamples = buf_len / sample_width;
 
-    d = cap_digital_create(dbuf_len);
+    d = cap_digital_create(buf_len);
     cap_set_period((cap_t *) d, 1.0f / freq);
 
     for (uint64_t i = 0; i < nsamples; i++) {
-        cap_digital_set_sample(d, i, ((uint32_t *) dbuf)[i]);
+        cap_digital_set_sample(d, i, ((uint32_t *) buf)[i]);
     }
 
-    munmap(fbuf, fbuf_len);
-    if (compressed) {
-        free(dbuf);
-    }
-
+    free(buf);
     *dcap = d;
 
     return 0;
 }
-
-/* Function: mmap_file
- *
- * Maps a file contents into memory.
- *
- */
-static void mmap_file(FILE *fp, void **buf, size_t *len)
-{
-    struct stat st;
-    void *addr;
-
-    fstat(fileno(fp), &st);
-    addr = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fileno(fp), 0);
-    *len = st.st_size;
-    *buf = addr;
-}
-
-/* Attempts to decompress a memmaped gzip file in-place.  If the buffer
- * doesn't contain a GZIP image, it'll be left untouched.  Otherwise,
- * buf and buf_len will be replaced with the decompressed image.
- */
-static bool inflate_buffer(void *src, size_t src_len, void **dst, size_t *dst_len)
-{
-    size_t buf_len = 4 * (1 << 20); // start with 4 megabytes
-    void *buf = calloc(buf_len, sizeof(uint8_t));
-    z_stream strm  = {
-        .next_in = (Bytef *) src,
-        .avail_in = src_len,
-    };
-
-    int rc;
-
-    /* Note: this bare value is literally what the dang documentation
-     * says to put in there for combining window size and whether or not
-     * I wants gzip header detection (spointer alert: I does!)
-     */
-    rc = inflateInit2(&strm, (15 + 32));
-    if (Z_OK != rc) {
-        return false;
-    }
-
-    for (int retries = 10; retries > 0; retries--) {
-        buf = realloc(buf, buf_len);
-        strm.next_out = (Bytef *) buf;
-        strm.avail_out = buf_len;
-        rc = inflate(&strm, Z_FINISH);
-        assert(rc != Z_STREAM_ERROR);
-
-        if (Z_STREAM_END == rc) {
-            break;
-        } else if (Z_BUF_ERROR == rc) {
-            /* Bump the decompression buffer size */
-            buf_len *= 2;
-        } else {
-            /* Not compressed! */
-            inflateEnd(&strm);
-            free(buf);
-            *dst = src;
-            *dst_len = src_len;
-            return false;
-        }
-    }
-
-    *dst = realloc(buf, strm.total_out);
-    *dst_len = strm.total_out;
-    return true;
-}
+#endif

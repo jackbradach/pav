@@ -1,6 +1,6 @@
-/* File: saleae.h
+/* File: file_utils.h
  *
- * Protocol Analyzer Viewer - capture file import (Saleae format) (headers)
+ * Utility functions for file manipulation
  *
  * Author: Jack Bradach <jack@bradach.net>
  *
@@ -19,15 +19,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _SALEAE_H_
-#define _SALEAE_H_
+#ifndef _FILE_UTILS_H_
+#define _FILE_UTILS_H_
+
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#include "queue.h"
+#include "refcnt.h"
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int saleae_import_analog(FILE *fp, struct cap_bundle **new_bundle);
-int saleae_import_digital(FILE *fp, size_t sample_width, float freq, cap_digital_t **dcap);
+int file_load_path(const char *path, void **buf, size_t *len);
+int file_load(FILE *fp, void **buf, size_t *len);
 
 #ifdef __cplusplus
 }
