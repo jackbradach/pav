@@ -157,14 +157,13 @@ void plot_to_cairo_surface(struct plot *pl, cairo_surface_t *cs)
     pl_cmd(PLESC_DEVINIT, c);
     plenv(pl->x[0], pl->x[pl->len - 1], pl->ymin, pl->ymax + (pl->ymax / 10), 0, 0);
     plcol0(2);
-    pllab(pl->xlabel, pl->ylabel, pl->title);
+    //pllab(pl->xlabel, pl->ylabel, pl->title);
     plcol0(3);
     plline(pl->len, (PLFLT *) pl->x, (PLFLT *) pl->y);
 
     /* Draw reticle */
     plcol0(12);
     pljoin(x_ret, pl->ymin, x_ret, 2 * pl->ymax);
-
     plstring(1, &x_ret, &pl->y[pl->reticle], "X");
 
     plend();

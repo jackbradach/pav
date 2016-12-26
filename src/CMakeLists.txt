@@ -14,6 +14,11 @@ find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIR})
 set(LIBS ${LIBS} ${SDL2_LIBRARY})
 
+find_package(GLEW REQUIRED)
+include_directories(${GLEW_INCLUDE_DIRS})
+set(LIBS ${LIBS} ${GLEW_LIBRARIES})
+
+
 # Source containing 'main()'
 set(SRC_MAIN
     pav.c
@@ -31,6 +36,7 @@ set(SRC_LIBRARY
     plot.c
     proto.c
     saleae.c
+    gui/shaders.c
     gui/display.c
     gui/pav_gui.c
     gui/gui.c

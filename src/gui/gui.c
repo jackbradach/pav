@@ -39,6 +39,7 @@
 #include "gui_event.h"
 #include "gui_plot.h"
 #include "views.h"
+#include "shaders.h"
 
 
 unsigned GUI_WIDTH = 1024;
@@ -93,14 +94,21 @@ void gui_start(struct pav_opts *opts)
     }
     cap_bundle_dropref(bun);
 
-
-
     views_populate_from_bundle(gui->bundle, &gui->views);
     gui->view_active = TAILQ_FIRST(gui->views);
 
     gui->quit = false;
 
     display_init();
+
+
+    {
+        GLint p;
+        glewInit();
+        p = shader_compile_program("test.vert", "test.frag");
+        printf("p = %d\n", p);
+        gui->shader = p;
+    }
 
     /* Blocking */
     gui_event_loop();

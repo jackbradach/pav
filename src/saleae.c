@@ -29,7 +29,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-
 #include "adc.h"
 #include "file_utils.h"
 

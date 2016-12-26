@@ -1,0 +1,42 @@
+Protocol Analyzer Viewer
+------------------------
+Imports analog capture files (such as those from a Saleae Logic Pro 16) and
+processes them according to the 'mode' flag.
+
+Running modes:
+--decode: treats the capture as a USART (115200 8-N-1 for now) and runs the
+samples through a protocol analyzer.  Results will be written to stdout.
+
+--plotpng: plots the capture to a png
+
+--gui: loads the capture into a GUI.
+    GUI Keys:
+        z / x - zoom in/out
+        left / right - find previous/next digital edge.
+        q - quit
+
+* Note: If no input capture is specified, it'll try to load a demo from where
+* the Debian packager installed it.
+
+Build Instructions
+------------------
+Debug build:
+$ mkdir build
+$ cd build
+$ cmake -DCMAKE_BUILD_TYPE=Debug ..
+$ make
+(binary in build/bin)
+
+Generate coverage:
+$ mkdir build
+$ cd build
+$ cmake -DCMAKE_BUILD_TYPE=Coverage ..
+$ make coverage
+(results in build/cov)
+
+Package binary (debian):
+$ mkdir build
+$ cd build
+$ cmake -DCMAKE_BUILD_TYPE=Release ..
+$ make package
+(debian package generated to build dir)

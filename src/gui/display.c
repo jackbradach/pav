@@ -27,7 +27,9 @@ uint32_t display_refresh(uint32_t interval, void *param)
     int idx = 0;
 
     SDL_RenderClear(g->renderer);
-
+    if (g->shader) {
+        glUseProgram(g->shader);
+    }
     TAILQ_FOREACH(view, g->views, entry) {
         SDL_Rect dstrect;
         int w, h;

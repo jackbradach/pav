@@ -17,8 +17,12 @@ static bool inflate_buffer(void *src, size_t src_len, void **dst, size_t *dst_le
 
 int file_load_path(const char *path, void **buf, size_t *len)
 {
-
-    return 0;
+    FILE *fp = fopen(path, "rb");
+    if (NULL == fp) {
+        fprintf(stderr, "Unable to open < %s >\n", path);
+        return -1;
+    }
+    return file_load(fp, buf, len);
 }
 
 int file_load(FILE *fp, void **buf, size_t *len)
