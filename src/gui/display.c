@@ -27,13 +27,16 @@ uint32_t display_refresh(uint32_t interval, void *param)
     int idx = 0;
 
     SDL_RenderClear(g->renderer);
-    if (g->shader) {
-        glUseProgram(g->shader);
-    }
+
     TAILQ_FOREACH(view, g->views, entry) {
         SDL_Rect dstrect;
         int w, h;
         views_refresh(view);
+        if (view == g->view_active) {
+            glUseProgram(g->shader);
+        } else {
+            glUseProgram(0);
+        }
         SDL_QueryTexture(view->txt, NULL, NULL, &w, &h);
         dstrect.x = 0;
         dstrect.y = idx * h;

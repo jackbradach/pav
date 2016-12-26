@@ -29,9 +29,26 @@
 #include <GL/glew.h>
 #include <GL/glut.h>
 
+#include "queue.h"
+#include "refcnt.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+enum shaders_avail {
+    SHADER_DIM = 1,
+    SHADER_BRIGHT,
+    __SHADER_LAST
+};
+#define SHADER_MAX (__GUI_EVENT_LAST - 1)
+
+typedef struct shader {
+    TAILQ_ENTRY(shader) entry;
+    struct refcnt rcnt;
+} shader_t;
+TAILQ_HEAD(shader_list, shader);
+typedef struct shader_list shader_list_t;
 
 GLint shader_compile_program(const char *vertex_src, const char *fragment_src);
 

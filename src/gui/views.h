@@ -7,7 +7,7 @@
 #include "plot.h"
 #include "gui.h"
 #include "queue.h"
-
+#include "shaders.h"
 
 enum view_flags {
     VIEW_CLEAN = 0x0,
@@ -22,6 +22,7 @@ struct ch_view {
     SDL_Texture *txt;
     uint64_t sample_selected;
     uint32_t flags;
+    shader_t *shader;
 };
 TAILQ_HEAD(ch_view_list, ch_view);
 
