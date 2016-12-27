@@ -58,7 +58,7 @@ void gui_event_loop(void)
         }
 
         process_event(&e);
-        display_refresh(0,0);
+        display_refresh();
     }
 
 }

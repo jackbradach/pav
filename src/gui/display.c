@@ -13,14 +13,12 @@
 
 const uint32_t refresh_delay_ms = 10;
 
-
 void display_init(void)
 {
-    //SDL_AddTimer(refresh_delay_ms, display_refresh, NULL);
-
+    // should possibly drop.
 }
 
-uint32_t display_refresh(uint32_t interval, void *param)
+void display_refresh(void)
 {
     struct gui *g = gui_get_instance();
     struct ch_view *view;
@@ -47,6 +45,4 @@ uint32_t display_refresh(uint32_t interval, void *param)
     }
 
     SDL_RenderPresent(g->renderer);
-
-    return (interval);
 }
