@@ -1,0 +1,30 @@
+FROM tomcat:jre8
+MAINTAINER Jack Bradach <jack@bradach.net
+
+ENV OPENGROK_INSTANCE_BASE /grok
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+    && apt-get install -y \
+        curl \
+        exuberant-ctags \
+        git \
+        inotify-tools \
+        unzip
+
+WORKDIR /tmp
+RUN curl -fSL \
+    "https://github.com/OpenGrok/OpenGrok/files/631110/opengrok-0.13-rc5.zip" \
+    -o opengrok.zip
+RUN unzip opengrok.zip
+RUN mkdir /opt/opengrok
+WORKDIR /opt/opengrok
+RUN tar --strip-components=1 -xvf /tmp/opengrok*.tar.gz
+RUN rm /tmp/opengrok*
+
+RUN OPENGROK_TOMCAT_BASE=$CATALINA_HOME bin/OpenGrok deploy
+
+COPY opengrok.sh /
+RUN chmod +x /opengrok.sh
+
+WORKDIR /
+CMD ["/opengrok.sh"]

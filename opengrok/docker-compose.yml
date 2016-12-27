@@ -1,0 +1,18 @@
+version: '2'
+
+services:
+  opengrok:
+    build:
+        context: .
+        dockerfile: Dockerfile-OpenGrok
+    image: jbradach/opengrok
+    container_name: OpenGrok
+    env_file: opengrok.env
+    ports:
+        - 8080:8080
+    volumes:
+        - og_data:/opengrok/data
+        - /opt/opengrok/src:/opengrok/src
+
+volumes:
+  og_data:
