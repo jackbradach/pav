@@ -51,12 +51,17 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/gui
 )
 
-set(LIBRARY_NAME protoval)
+set(LIBRARY_NAME pavobj)
 set(BINARY_NAME pav)
 
-add_library(${LIBRARY_NAME} ${SRC_LIBRARY})
+add_library(pavobj ${SRC_LIBRARY})
 add_executable(${BINARY_NAME} ${SRC_MAIN})
-target_link_libraries(${BINARY_NAME} ${LIBRARY_NAME} ${LIBS})
+
+# Build shader blobs
+add_subdirectory(gui/shaders)
+message("res: ${RES_SHADERS_LIBRARY}")
+add_dependencies(pav res_shaders)
+target_link_libraries(${BINARY_NAME} ${LIBRARY_NAME} ${LIBS} ${RES_SHADERS_LIBRARY})
 
 
 # Strip symbols for release
