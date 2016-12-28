@@ -5,6 +5,7 @@ project(pav)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
+set(BINARY_NAME ${CMAKE_PROJECT_NAME})
 
 if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
     include(CodeCoverage)
@@ -33,11 +34,72 @@ endif()
 
 enable_testing()
 
-# Build the main source tree
-add_subdirectory(src)
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/gui
+)
 
-# Build unit tests
-add_subdirectory(tests)
+# Find external libraries
+find_package(Cairo REQUIRED)
+include_directories(${CAIRO_INCLUDE_DIRS})
+set(LIBS ${LIBS} ${CAIRO_LIBRARIES})
+
+find_package(PLplot REQUIRED)
+include_directories(${PLplot_INCLUDE_DIR})
+set(LIBS ${LIBS} ${PLplot_wxwidgets_LIBRARY} ${PLplot_LIBRARY})
+
+find_package(ZLIB REQUIRED)
+include_directories(${ZLIB_INCLUDE_DIRS})
+set(LIBS ${LIBS} ${ZLIB_LIBRARIES})
+
+find_package(SDL2 REQUIRED)
+include_directories(${SDL2_INCLUDE_DIR})
+set(LIBS ${LIBS} ${SDL2_LIBRARY})
+
+find_package(GLEW REQUIRED)
+include_directories(${GLEW_INCLUDE_DIRS})
+set(LIBS ${LIBS} ${GLEW_LIBRARIES})
+
+
+
+# Need Math library.
+list(APPEND LIBS m)
+
+# Add all the sub-builds
+add_subdirectory(src)
+add_subdirectory(src/gui)
+add_subdirectory(src/gui/shaders)
+
+# Build the main executable
+add_executable(${BINARY_NAME}
+    $<TARGET_OBJECTS:main>
+    $<TARGET_OBJECTS:src>
+    $<TARGET_OBJECTS:gui>)
+target_link_libraries(${BINARY_NAME} ${LIBS} shaders)
+
+# Build the unit tests if Debug or Coverage
+if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+    find_package(GTest REQUIRED)
+    include_directories(${GTEST_INCLUDE_DIRS})
+    add_subdirectory(tests)
+    list(APPEND LIBS ${GTEST_BOTH_LIBRARIES})
+    add_executable(
+        ${BINARY_NAME}_tests
+        EXCLUDE_FROM_ALL
+        $<TARGET_OBJECTS:tests>
+        $<TARGET_OBJECTS:src>
+    )
+    target_link_libraries(${BINARY_NAME}_tests ${LIBS})
+endif()
+
+# Strip symbols for release
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_custom_command(TARGET ${BINARY_NAME}
+        POST_BUILD
+        COMMAND strip -s ${EXECUTABLE_OUTPUT_PATH}/${BINARY_NAME}
+    )
+endif()
+
 
 # Build documentation
 if (0) # tie to build type!
@@ -47,4 +109,28 @@ build_naturaldocs(${CMAKE_PROJECT_NAME}
     ${CMAKE_CURRENT_BINARY_DIR}/ref
     ${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/nd
 )
+endif()
+
+# Debian packager for releases
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+
+install(TARGETS ${BINARY_NAME}
+        RUNTIME
+        DESTINATION bin
+)
+
+set(EXAMPLES
+    ${CMAKE_SOURCE_DIR}/tests/captures
+)
+
+install(DIRECTORY ${EXAMPLES}
+    DESTINATION share/doc/${CMAKE_PROJECT_NAME}
+    COMPONENT examples
+)
+
+set(CPACK_GENERATOR "DEB")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Jack Bradach <jack@bradach.net>")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "zlib1g, libc6, libsdl2-2.0-0, libplplot12, libcairo2")
+set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE amd64)
+include(CPack)
 endif()
