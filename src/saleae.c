@@ -22,6 +22,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,7 +40,7 @@ struct __attribute__((__packed__)) saleae_analog_header {
 };
 
 /* Local prototypes */
-static void import_analog_channel(void *abuf, unsigned ch, cap_analog_t *acap);
+static void import_analog_channel(void *abuf, unsigned ch, cap_t *cap);
 
 int saleae_import_analog(FILE *fp, struct cap_bundle **new_bundle)
 {
@@ -66,15 +67,28 @@ int saleae_import_analog(FILE *fp, struct cap_bundle **new_bundle)
     bun = cap_bundle_create();
 
     for (uint16_t ch = 0; ch < hdr->channel_count; ch++) {
-        cap_analog_t *acap = cap_analog_create(hdr->sample_total);
-        cap_set_physical_ch((cap_t *) acap, ch);
-        cap_set_period((cap_t *) acap, hdr->sample_period);
-        import_analog_channel(abuf, ch, acap);
-        cap_analog_set_minmax(acap);
+        cap_t *cap = cap_create(hdr->sample_total);
+        cap_set_physical_ch(cap, ch);
+        cap_set_period(cap, hdr->sample_period);
+        import_analog_channel(abuf, ch, cap);
+        cap_update_analog_minmax(cap);
 
         /* Make a digital version of the analog capture */
-        cap_analog_adc_ttl(acap);
-        cap_bundle_add(bun, (cap_t *) acap);
+        cap_analog_adc_ttl(cap);
+        cap_bundle_add(bun, cap);
+
+        {
+            uint16_t min, max, diff;
+            min = cap_get_analog_min(cap);
+            max = cap_get_analog_max(cap);
+            diff = max - min;
+            printf("Analog import min/max: %d/%d\n", min, max);
+            printf("Analog sample range: %d (%.0f bits)\n",
+                diff, floor(log2(diff) + 1));
+            printf("Analog resolution: %.2f mV\n",
+                1000 * (20.0/4096));
+
+        }
     }
 
     free(abuf);
@@ -82,44 +96,18 @@ int saleae_import_analog(FILE *fp, struct cap_bundle **new_bundle)
     return 0;
 }
 
-static void import_analog_channel(void *abuf, unsigned ch, cap_analog_t *acap)
+static void import_analog_channel(void *abuf, unsigned ch, cap_t *cap)
 {
     struct saleae_analog_header *hdr = (struct saleae_analog_header *) abuf;
     float *ch_start;
 
     ch_start = (float *) (abuf + sizeof(struct saleae_analog_header) +
         (ch * (sizeof(float) * hdr->sample_total)));
+
+    /* The loop instead of memcpy is to convert from float
+     * to uint16_t.
+     */
     for (uint64_t i = 0; i < hdr->sample_total; i++) {
-        cap_analog_set_sample(acap, i, (uint16_t) ch_start[i]);
+        cap_set_analog(cap, i, (uint16_t) ch_start[i]);
      }
 }
-
-#if 0
-// TODO - need to re-evaluate how digital captures are imported...
-int saleae_import_digital(FILE *fp, size_t sample_width, float freq, cap_digital_t **dcap)
-{
-    void *buf;
-    size_t buf_len;
-    cap_digital_t *d;
-    uint64_t nsamples;
-
-    if (file_load(fp, &buf, &buf_len) < 1) {
-        *dcap = NULL;
-        return -1;
-    }
-
-    nsamples = buf_len / sample_width;
-
-    d = cap_digital_create(buf_len);
-    cap_set_period((cap_t *) d, 1.0f / freq);
-
-    for (uint64_t i = 0; i < nsamples; i++) {
-        cap_digital_set_sample(d, i, ((uint32_t *) buf)[i]);
-    }
-
-    free(buf);
-    *dcap = d;
-
-    return 0;
-}
-#endif

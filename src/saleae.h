@@ -26,8 +26,8 @@
 extern "C" {
 #endif
 
-int saleae_import_analog(FILE *fp, struct cap_bundle **new_bundle);
-int saleae_import_digital(FILE *fp, size_t sample_width, float freq, cap_digital_t **dcap);
+int saleae_import_analog(FILE *fp, cap_bundle_t **new_bundle);
+int saleae_import_digital(FILE *fp, size_t sample_width, float freq, cap_t **dcap);
 
 #ifdef __cplusplus
 }

@@ -1,13 +1,17 @@
 set(LIBNAME "res_shaders")
 set(OBJCOPY_FMT elf64-x86-64)
+set(OBJCOPY_BINARCH i386)
 set(OBJCOPY_PREFIX res_shader)
 
+
+find_package(ImageMagick REQUIRED)
 
 # the unit tests can link against them.
 set(SRC_SHADERS
     test.vert
     test.frag
 )
+# srec_cat test.frag -Binary -o shader_test_frag.c -C-Array shader_test_frag -Include -header "shader test.frag"
 
 foreach(SHADER ${SRC_SHADERS})
 get_filename_component(BASE ${SHADER} NAME_WE)
@@ -33,8 +37,9 @@ add_custom_command(
             --redefine-sym _binary_${BASE}_${EXT}_start=${OBJCOPY_PREFIX}_${BASE}_${EXT}_start
             --redefine-sym _binary_${BASE}_${EXT}_end=${OBJCOPY_PREFIX}_${BASE}_${EXT}_end
             --redefine-sym _binary_${BASE}_${EXT}_size=${OBJCOPY_PREFIX}_${BASE}_${EXT}_size
-            --input binary
-            --output ${OBJCOPY_FMT}
+            --input=binary
+            --output-target ${OBJCOPY_FMT}
+            --binary-architecture=${OBJCOPY_BINARCH}
             ${SHADER_SRC}
             ${RES_SHADER_PATH}/${SHADER_OBJ}
     DEPENDS ${RES_SHADER_PATH}/${SHADER_SRC}

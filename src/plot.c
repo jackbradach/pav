@@ -49,7 +49,6 @@ struct plot {
 };
 
 static void plot_free(const struct refcnt *ref);
-static void plot_from_acap(struct cap_analog *acap, int64_t idx, struct plot **plot);
 static void sprint_plot_cap_title(cap_t *cap, char *s);
 
 /* Function: plot_from_cap
@@ -58,11 +57,6 @@ static void sprint_plot_cap_title(cap_t *cap, char *s);
  *
  */
 void plot_from_cap(cap_t *cap, int64_t idx, struct plot **plot)
-{
-    plot_from_acap((struct cap_analog *) cap, idx, plot);
-}
-
-static void plot_from_acap(struct cap_analog *acap, int64_t idx, struct plot **plot)
 {
     struct plot *pl;
     char str_label[PLOT_LABEL_MAXLEN];
@@ -74,20 +68,20 @@ static void plot_from_acap(struct cap_analog *acap, int64_t idx, struct plot **p
     pl = plot_create();
 
     /* Set the y-axis scales to the voltage range */
-    smin = cap_analog_get_sample_min(acap);
-    smax = cap_analog_get_sample_max(acap);
-    cal = cap_analog_get_cal(acap);
+    smin = cap_get_analog_min(cap);
+    smax = cap_get_analog_max(cap);
+    cal = cap_get_analog_cal(cap);
     pl->ymin = adc_sample_to_voltage(smin, cal);
     pl->ymax = adc_sample_to_voltage(smax, cal);
 
-    nsamples = cap_get_nsamples((cap_t *) acap);
-    offset = cap_get_offset((cap_t *) acap);
+    nsamples = cap_get_nsamples(cap);
+    offset = cap_get_offset(cap);
     pl->x = calloc(nsamples, sizeof(double));
     pl->y = calloc(nsamples, sizeof(double));
     pl->len = nsamples;
 
     for (uint64_t i = 0, j = offset; i < nsamples; i++, j++) {
-        uint16_t sample = cap_analog_get_sample(acap, i);
+        uint16_t sample = cap_get_analog(cap, i);
         float v = adc_sample_to_voltage(sample, cal);
         pl->x[i] = j;
         pl->y[i] = v;
@@ -100,7 +94,7 @@ static void plot_from_acap(struct cap_analog *acap, int64_t idx, struct plot **p
     }
     plot_set_xlabel(pl, str_label);
     plot_set_ylabel(pl, "Volts");
-    sprint_plot_cap_title((cap_t *) acap, pl->title);
+    sprint_plot_cap_title(cap, pl->title);
 
     *plot = pl;
 }

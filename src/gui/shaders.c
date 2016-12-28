@@ -89,3 +89,45 @@ GLint shader_compile_program(const char *vertex_src, const char *fragment_src)
 
     return program;
 }
+
+#if 0
+GLint shader_compile_resources()
+{
+    GLuint vertex, fragment;
+    GLuint program = 0;
+    GLint linked;
+
+    program = glCreateProgram();
+    if (!program) {
+        fprintf(stderr, "Failed creating a new shader program\n");
+        return -1;
+    }
+
+    shader = shader_compile((const GLchar *) vertex_buf, len, type);
+    if (!shader) {
+        fprintf(stderr, "Failed to compile shader < %s >\n", path);
+        return 0;
+    }
+
+    glAttachShader(program, vertex);
+    glAttachShader(program, fragment);
+    glLinkProgram(program);
+    glGetShaderiv(program, GL_LINK_STATUS, &linked);
+    if (!linked) {
+        int loglen;
+        fprintf(stderr, "Failed to link shader program:\n");
+        glGetShaderiv(program, GL_INFO_LOG_LENGTH, &loglen);
+        if (loglen > 0) {
+            char *info = (char *) malloc(loglen);
+            glGetShaderInfoLog(program, loglen, NULL, info);
+            free(info);
+        }
+        return 0;
+    }
+
+    glDetachShader(program, vertex);
+    glDetachShader(program, fragment);
+
+    return program;
+}
+#endif

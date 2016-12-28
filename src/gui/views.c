@@ -86,16 +86,14 @@ void views_zoom_in(struct ch_view *v)
     cap_t *old, *top;
     uint64_t z0, z1;
 
-    top = cap_subcap_get_top(v->cap);
+    top = cap_get_top(v->cap);
 
     z0 = (cap_get_nsamples(v->cap) / 4);
     z1 = (cap_get_nsamples(v->cap) - z0);
-    z0 += cap_get_offset(v->cap);
-    z1 += cap_get_offset(v->cap);
 
     // TODO - critical section
     old = v->cap;
-    v->cap = cap_create_subcap(top, z0, z1);
+    v->cap = cap_create_subcap(v->cap, z0, z1);
     if (old != top)
         cap_dropref(old);
     v->flags |= VIEW_PLOT_DIRTY;
@@ -106,7 +104,7 @@ void views_zoom_out(struct ch_view *v)
     cap_t *top;
     int64_t z0, z1, zoom_gran;
 
-    top = cap_subcap_get_top(v->cap);
+    top = cap_get_top(v->cap);
 
     /* If there's no parent, this is the top-level zoom! */
     if (top == v->cap) {
@@ -143,13 +141,13 @@ void views_pan_left(struct ch_view *v)
     cap_t *top;
     int64_t mid, prev;
 
-    top = cap_subcap_get_top(v->cap);
+    top = cap_get_top(v->cap);
 
     /* Figure out where the next edge is.  We have to translate our current
      * midpoint to the location in the parent.
      */
     mid = cap_get_nsamples(v->cap) / 2;
-    prev = cap_find_prev_edge(top, v->sample_selected);
+    prev = cap_prev_edge(top, v->sample_selected);
 
     /* If the previous edge is near the boundary of the capture, snap-scroll
      * to the previous window.
@@ -176,13 +174,13 @@ void views_pan_right(struct ch_view *v)
     cap_t *top;
     int64_t mid, next;
 
-    top = cap_subcap_get_top(v->cap);
+    top = cap_get_top(v->cap);
 
     /* Figure out where the next edge is.  We have to translate our current
      * midpoint to the location in the parent.
      */
     mid = cap_get_nsamples(v->cap) / 2;
-    next = cap_find_next_edge(top, v->sample_selected);
+    next = cap_next_edge(top, v->sample_selected);
 
     /* If the next edge is near the boundary of the capture, snap-scroll
      * to the next window.

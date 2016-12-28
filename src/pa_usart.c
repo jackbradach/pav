@@ -141,16 +141,11 @@ void pa_usart_decode_stream(struct pa_usart_ctx *ctx, uint32_t raw)
 // TODO - based on how many samples have been seen since last reset.
 void pa_usart_decode_chunk(struct pa_usart_ctx *ctx, cap_t *cap)
 {
-    cap_digital_t *dcap;
     struct timespec ts_start, ts_end, ts_delta;
 
-    dcap = cap_get_digital(cap);
-
     clock_gettime(CLOCK_MONOTONIC, &ts_start);
-    for (uint64_t i = 0; i < cap_get_nsamples((cap_t *) dcap); i++) {
-        uint32_t dsample = cap_digital_get_sample(dcap, i);
-        uint8_t us = unswizzle_sample(ctx, dsample);
-        stream_decoder(ctx, us);
+    for (uint64_t i = 0; i < cap_get_nsamples(cap); i++) {
+        stream_decoder(ctx, cap_get_digital(cap, i));
     }
     clock_gettime(CLOCK_MONOTONIC, &ts_end);
 

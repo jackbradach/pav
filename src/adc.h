@@ -36,8 +36,8 @@ typedef struct adc_cal adc_cal_t;
 adc_cal_t *adc_cal_create(float vmin, float vmax);
 float adc_sample_to_voltage(uint16_t sample, adc_cal_t *cal);
 uint16_t adc_voltage_to_sample(float voltage, adc_cal_t *cal);
-void adc_acap_ttl(cap_analog_t *acap);
-void adc_acap(cap_analog_t *acap, uint16_t v_lo, uint16_t v_hi);
+void adc_acap_ttl(cap_t *acap);
+void adc_acap(cap_t *acap, uint16_t v_lo, uint16_t v_hi);
 
 double adc_cal_get_vmin(adc_cal_t *cal);
 double adc_cal_get_vmax(adc_cal_t *cal);
