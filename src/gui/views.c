@@ -85,8 +85,17 @@ void views_zoom_in(struct ch_view *v)
 {
     cap_t *old, *top;
     uint64_t z0, z1;
+    uint64_t nsamples;
 
     top = cap_get_top(v->cap);
+    nsamples = cap_get_nsamples(v->cap);
+
+    // calculate z0/z1 around selected sample
+    // width is going to be based on window size
+    // zoom_level * period / nsamples?
+    // "if our display sampling rate is doubled"
+    //zperiod = cap_get_period(v->cap) / v->zoom_level;
+
 
     z0 = (cap_get_nsamples(v->cap) / 4);
     z1 = (cap_get_nsamples(v->cap) - z0);

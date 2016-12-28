@@ -3,7 +3,6 @@ set(OBJCOPY_FMT elf64-x86-64)
 set(OBJCOPY_BINARCH i386)
 set(OBJCOPY_PREFIX res_shader)
 
-
 find_package(ImageMagick REQUIRED)
 
 # the unit tests can link against them.
@@ -55,6 +54,6 @@ set_source_files_properties(
     GENERATED TRUE
 )
 
-add_library(${LIBNAME} STATIC ${RES_OBJS})
-set_target_properties(${LIBNAME} PROPERTIES LINKER_LANGUAGE C)
-set(RES_SHADERS_LIBRARY ${RES_SHADER_PATH}/lib${LIBNAME}.a PARENT_SCOPE)
+add_library(shaders STATIC ${RES_OBJS})
+set_target_properties(shaders PROPERTIES LINKER_LANGUAGE C)
+#set(RES_SHADERS_LIBRARY ${RES_SHADER_PATH}/lib${LIBNAME}.a PARENT_SCOPE)

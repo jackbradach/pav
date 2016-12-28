@@ -38,15 +38,6 @@ set(SRC_LIBRARY
     plot.c
     proto.c
     saleae.c
-    gui/res.c
-    gui/shaders.c
-    gui/display.c
-    gui/pav_gui.c
-    gui/gui.c
-    gui/gui_event.c
-    gui/gui_plot.c
-    gui/display.c
-    gui/views.c
 )
 
 include_directories(
@@ -58,12 +49,15 @@ set(LIBRARY_NAME pavobj)
 set(BINARY_NAME pav)
 
 add_library(pavobj ${SRC_LIBRARY})
-add_executable(${BINARY_NAME} ${SRC_MAIN})
 
-# Build shader blobs
-#add_subdirectory(gui/shaders)
-#add_dependencies(pav res_shaders)
-target_link_libraries(${BINARY_NAME} ${LIBRARY_NAME} ${LIBS} ${RES_SHADERS_LIBRARY})
+# Build gui
+add_subdirectory(gui)
+add_executable(${BINARY_NAME} ${SRC_MAIN} $<TARGET_OBJECTS:gui>)
+
+
+target_link_libraries(${BINARY_NAME} ${LIBRARY_NAME}
+    ${LIBS} shaders
+    )
 
 
 # Strip symbols for release

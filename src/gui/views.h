@@ -20,9 +20,12 @@ struct ch_view {
     cap_t *cap;
     plot_t *pl;
     SDL_Texture *txt;
-    uint64_t sample_selected;
-    uint32_t flags;
     shader_t *shader;
+    uint64_t sample_min;
+    uint64_t sample_max;
+    uint64_t sample_selected;
+    unsigned zoom_level;
+    uint32_t flags;
 };
 TAILQ_HEAD(ch_view_list, ch_view);
 
