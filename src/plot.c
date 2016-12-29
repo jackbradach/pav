@@ -142,18 +142,6 @@ void plot_from_cap(cap_t *cap, struct plot **plot)
     *plot = pl;
 }
 
-
-void plot_to_wxwidgets(struct plot *p)
-{
-    plsdev("wxwidgets");
-    plinit();
-    plenv(p->x[0], p->x[p->len - 1], p->ymin, p->ymax + (p->ymax / 10), 0, 0);
-    pllab(p->xlabel, p->ylabel, p->title);
-    plcol0(3);
-    plline(p->len, (PLFLT *) p->x, (PLFLT *) p->y);
-    plend();
-}
-
 void plot_to_texture(struct plot *pl, SDL_Texture *txt)
 {
     cairo_surface_t *cs;

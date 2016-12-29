@@ -75,25 +75,6 @@ TEST(Plot, PlotFromAnalogCap) {
     plot_dropref(p);
 }
 
-// Works, but I think there's a bug in wxwidgets's gtk bindings...
-TEST(Plot, DISABLED_PlotToWxwidgets) {
-    cap_bundle_t *b;
-    cap_t *cap;
-    plot_t *p;
-    const char test_file[] = "uart_analog_115200_50mHz.bin.gz";
-    FILE *fp = fopen(test_file, "rb");
-
-    saleae_import_analog(fp, &b);
-    cap = cap_bundle_first(b);
-
-    plot_from_cap(cap, &p);
-    cap_bundle_dropref(b);
-
-    plot_to_wxwidgets(p);
-
-    plot_dropref(p);
-}
-
 TEST(Plot, PlotToCairoSurface) {
     cap_bundle_t *b;
     cap_t *cap;
