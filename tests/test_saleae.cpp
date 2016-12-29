@@ -1,4 +1,6 @@
+#include <cerrno>
 #include <gtest/gtest.h>
+
 
 #include "cap.h"
 #include "saleae.h"
@@ -39,4 +41,14 @@ TEST(SaleaeTest, ImportAnalogCapture) {
 
     cap_bundle_dropref(bun);
     fclose(fp);
+}
+
+TEST(SaleaeTest, ImportAnalogBogusInput) {
+    cap_bundle_t *bun = (cap_bundle_t *) 0xf00fb00b;
+    int rc;
+
+    rc = saleae_import_analog(NULL, &bun);
+    ASSERT_TRUE(rc < 0);
+    ASSERT_EQ(errno, EIO);
+
 }

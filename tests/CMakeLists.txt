@@ -35,7 +35,7 @@ add_test(NAME AnalogDecode
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
-add_dependencies(check ${CMAKE_PROJECT_NAME} ${CMAKE_PROJECT_NAME}_tests copy_captures)
+add_dependencies(check ${CMAKE_PROJECT_NAME} ${CMAKE_PROJECT_NAME}_tests tests copy_captures)
 
 # Create a 'coverage' target and make sure it builds the binaries!
 if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
