@@ -36,6 +36,7 @@ extern unsigned GUI_HEIGHT;
 struct gui {
     SDL_Window *window;
 	SDL_Renderer *renderer;
+    SDL_GLContext *glctx;
     // TODO - drop texture and have a 'render list' instead
     SDL_Texture *texture;
     bool quit;
@@ -56,4 +57,8 @@ gui_t *gui_get_instance(void);
 void gui_quit(void);
 bool gui_active(void);
 void gui_draw(void);
+
+SDL_GLContext *gui_get_glctx(void);
+SDL_Window *gui_get_window(void);
+
 #endif

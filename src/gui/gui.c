@@ -171,8 +171,42 @@ static int init_sdl(void)
         SDL_Log("SDL_CreateTexture() failed: %s", SDL_GetError());
         return -1;
     }
-
     gui->texture = texture;
 
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetSwapInterval(1);
+    gui->glctx = SDL_GL_CreateContext(window);
+
+    /* Init GLEW */
+    glewExperimental = GL_TRUE;
+    rc = glewInit();
+    if (GLEW_OK != rc) {
+        SDL_Log("Couldn't initialize GLEW!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Init GLUT */
+    // FIXME - this is supposed to parse argc/argp before our own argp;
+    // need to change gui_start() to handle command parsing?
+    {
+        char *bogus_argv[1] = { "bogus" };
+        int bogus_argc = 1;
+        glutInit(&bogus_argc, bogus_argv);
+    }
+
+
+    glMatrixMode(GL_PROJECTION);
+    //glLoadIdentity();
+    //gluPerspective(45.0f, GUI_WIDTH/GUI_HEIGHT, 00.1f, 100.0f);
+
+
+
     return 0;
+}
+
+SDL_Window *gui_get_window(void)
+{
+    struct gui *g = gui_get_instance();
+    return g->window;
 }

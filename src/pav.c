@@ -86,6 +86,7 @@ void do_plot_capture_to_png(struct pav_opts *opts)
 
     cs = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1024, 768);
     plot_to_cairo_surface(pl, cs);
+    // TODO - 2016/12/28 - make this write to opts->fout
     cairo_surface_write_to_png(cs, "test.png");
     cairo_surface_destroy(cs);
 }

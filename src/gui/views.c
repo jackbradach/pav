@@ -1,9 +1,13 @@
+#include <GL/glew.h>
+#include <GL/glut.h>
+
 #include "cap.h"
 #include "gui.h"
 #include "views.h"
 
 struct view {
     TAILQ_ENTRY(view) entry;
+    GLuint vbo;
     cap_t *cap;
     plot_t *pl;
     SDL_Texture *txt;
@@ -11,8 +15,9 @@ struct view {
     uint64_t begin;
     uint64_t end;
     int64_t target;
-    unsigned zoom;
+    float zoom;
     uint32_t flags;
+    char *glyph;
 };
 TAILQ_HEAD(view_list, view);
 
@@ -43,9 +48,9 @@ SDL_Texture *views_get_texture(view_t *v)
     return v->txt;
 }
 
-unsigned views_get_zoom(view_t *v)
+GLuint views_get_vbo(view_t *v)
 {
-    return v->zoom;
+    return v->vbo;
 }
 
 view_t *views_first(views_t *vl)
@@ -68,6 +73,10 @@ view_t *views_last(views_t *vl)
     return TAILQ_LAST(&vl->head, view_list);
 }
 
+char *views_get_glyph(view_t *v)
+{
+    return v->glyph;
+}
 
 unsigned long views_get_begin(view_t *v)
 {
@@ -76,12 +85,17 @@ unsigned long views_get_begin(view_t *v)
 
 unsigned long views_get_end(view_t *v)
 {
-    return v->begin;
+    return v->end;
 }
 
 unsigned long views_get_width(view_t *v)
 {
     return(v->end - v->begin);
+}
+
+float views_get_zoom(view_t *v)
+{
+    return v->zoom;
 }
 
 void views_set_range(view_t *v, int64_t begin, int64_t end)
@@ -149,7 +163,29 @@ struct view *view_from_ch(cap_t *c)
     v->end = cap_get_nsamples(c);
     v->zoom = 1;
     v->flags |= VIEW_PLOT_DIRTY;
+    v->flags |= VIEW_VBO_DIRTY;
+
+
     return v;
+}
+
+
+void views_to_vertices(view_t *v, float **vertices)
+{
+    float *points;
+    int idx, i;
+
+    points = calloc(2 * views_get_width(v), sizeof(float));
+    for (i = 0, idx = v->begin; idx < v->end; idx++, i++) {
+        points[(2 * i)] = (float) i / (float) views_get_width(v);
+        points[(2 * i) + 1] = (float) cap_get_analog_voltage(v->cap, idx);
+    }
+
+    for (i = 0; i < 20; i++) {
+        printf("i %d x: %f y: %f\n",
+        i, points[(2*i)], points[(2*i) + 1]);
+    }
+    *vertices = points;
 }
 
 void views_destroy(struct views *vl)
@@ -171,7 +207,7 @@ void views_refresh(struct view *v)
     if (v->flags & VIEW_PLOT_DIRTY) {
         plot_from_view(v, &v->pl);
         v->flags &= ~VIEW_PLOT_DIRTY;
-        v->flags |= VIEW_TEXTURE_DIRTY;
+        v->flags |= VIEW_VBO_DIRTY;
     }
 
     /* Refesh the texture if dirty (eg, the size changed) */
@@ -179,9 +215,48 @@ void views_refresh(struct view *v)
         plot_to_texture(v->pl, v->txt);
         v->flags &= ~VIEW_TEXTURE_DIRTY;
     }
+
+    /* Refresh the VBO */
+    if (v->flags & VIEW_VBO_DIRTY) {
+        float *points;
+        GLsizeiptr len = 2 * views_get_width(v) * sizeof(float);
+        views_to_vertices(v, &points);
+
+        /* Bind vertices to a VBO; existing buffers look to get
+         * auto-cleaned when a different binding is set.
+         */
+        glGenBuffers(1, &v->vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, v->vbo);
+        glBufferData(GL_ARRAY_BUFFER, len, points, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        v->flags &= ~VIEW_VBO_DIRTY;
+    }
 }
 
+static void views_zoom(struct view *v, float level);
 void views_zoom_in(struct view *v)
+{
+    if (v->zoom * 2 >= 4096) {
+        printf("Can't zoom in further\n");
+        v->zoom = 4096;
+    } else {
+        v->zoom *= 2;
+    }
+    views_zoom(v, v->zoom);
+}
+
+void views_zoom_out(struct view *v)
+{
+    if ((v->zoom / 2) <= 1) {
+        printf("Can't zoom out further\n");
+        v->zoom = 1.0;
+    } else {
+        v->zoom /= 2;
+    }
+    views_zoom(v, v->zoom);
+}
+
+static void views_zoom(struct view *v, float level)
 {
     int64_t z0, z1;
     uint64_t nsamples;
@@ -189,97 +264,47 @@ void views_zoom_in(struct view *v)
 
     nsamples = cap_get_nsamples(v->cap);
 
-    znsamples = nsamples / (v->zoom + 1);
+    znsamples = nsamples / level;
     z0 = v->target - (znsamples / 2);
     z1 = v->target + (znsamples / 2);
-
-    printf("znsamples: %'lu z0: %'ld z1: %'ld target: %'ld\n",
-        znsamples, z0, z1, v->target);
-
-    /* Handle zooming at edges; it'll redistribute to the left or
-     * right as needed.
-     */
-    if (z0 < 0) {
-        z1 += -z0;
-        z0 += z0;
-    }
-
-    if (z1 >= nsamples) {
-        z0 -= (z1 - nsamples);
-        z1 -= (z1 - nsamples);
-    }
-
-    if (z0 < 0) {
-        printf("MAXIMUM ZOOM\n");
-        return;
-    }
-
-    // TODO - critical section
-    v->begin = z0;
-    v->end = z1;
-    v->zoom++;
-    v->flags |= VIEW_PLOT_DIRTY;
-}
-
-void views_zoom_out(struct view *v)
-{
-    cap_t *top;
-    int64_t z0, z1, zoom_gran;
-
-    top = cap_get_top(v->cap);
-
-    /* If there's no parent, this is the top-level zoom! */
-    if (top == v->cap) {
-        printf("Unable to zoom out further (Top)!\n");
-        return;
-    }
-
-    zoom_gran = cap_get_nsamples(v->cap) / 2;
-    z0 = cap_get_offset(v->cap) - zoom_gran;
-    z1 = cap_get_offset(v->cap) + cap_get_nsamples(v->cap) + zoom_gran;
 
     if (z0 < 0) {
         z0 = 0;
     }
 
-    if (z1 > (cap_get_nsamples(top) - 1)) {
-        z1 = cap_get_nsamples(top) - 1;
+    if (z1 >= nsamples) {
+        z1 = (nsamples);
     }
 
     // TODO - critical section
-    if ((z0 == 0) && (z1 == (cap_get_nsamples(top) - 1))) {
-        v->cap = top;
-    } else {
-        cap_t *old = v->cap;
-        v->cap = cap_create_subcap(top, z0, z1);
-        if (old != top)
-            cap_dropref(old);
-    }
+    v->begin = z0;
+    v->end = z1;
+    v->zoom = level;
     v->flags |= VIEW_PLOT_DIRTY;
 }
 
 void views_pan_left(struct view *v)
 {
-    cap_t *top;
-    int64_t mid, prev;
-
-    top = cap_get_top(v->cap);
-
-    /* Figure out where the next edge is.  We have to translate our current
-     * midpoint to the location in the parent.
-     */
-    mid = cap_get_nsamples(v->cap) / 2;
-    prev = cap_prev_edge(top, v->target);
+    uint64_t nsamples = cap_get_nsamples(v->cap);
+    int64_t prev = cap_prev_edge(v->cap, v->target);
 
     /* If the previous edge is near the boundary of the capture, snap-scroll
      * to the previous window.
      */
-    if (prev <= cap_get_offset(v->cap)) {
-        cap_t *old = v->cap;
-        v->cap = cap_create_subcap(top, prev - mid, prev + mid);
-        if (old != top) {
-            cap_dropref(old);
+    if ((prev <= v->begin) && (prev > 0)) {
+        double begin = v->begin - (views_get_width(v) * .25);
+        double end = v->end - (views_get_width(v) * .25);
+
+        if (begin < 0) {
+            begin = 0;
         }
+
+        if (end > nsamples) {
+            end = nsamples;
+        }
+
+        v->begin = begin;
+        v->end = end;
     }
 
     /* Don't lock the reticle onto the first sample as an edge. */
@@ -290,38 +315,48 @@ void views_pan_left(struct view *v)
     v->flags |= VIEW_PLOT_DIRTY;
 }
 
-// FIXME - Still some edge conditions where zooming and panning don't play nice.
 void views_pan_right(struct view *v)
 {
-    cap_t *top;
-    int64_t mid, next;
-
-    top = cap_get_top(v->cap);
-
-    /* Figure out where the next edge is.  We have to translate our current
-     * midpoint to the location in the parent.
-     */
-    mid = cap_get_nsamples(v->cap) / 2;
-    next = cap_next_edge(top, v->target);
+    uint64_t nsamples = cap_get_nsamples(v->cap);
+    uint64_t next = cap_next_edge(v->cap, v->target);
 
     /* If the next edge is near the boundary of the capture, snap-scroll
      * to the next window.
      */
-//    printf("next: %'ld offset: %'ld nsamples %'ld => total %'ld'\n", next,
-//        cap_get_offset(v->cap), cap_get_nsamples(v->cap), cap_get_offset(v->cap) + cap_get_nsamples(v->cap));
-    if ((next > cap_get_offset(v->cap) + cap_get_nsamples(v->cap)) &&
-        (next < (cap_get_nsamples(top) - 1))) {
-        cap_t *old = v->cap;
-        v->cap = cap_create_subcap(top, next - mid, next + mid);
-        v->flags |= VIEW_PLOT_DIRTY;
-        if (old != top)
-            cap_dropref(old);
+    if ((next > v->end) && (next < nsamples)) {
+        uint64_t begin = next - (views_get_width(v) / 2);
+        uint64_t end = next + (views_get_width(v) / 2);
+
+        if (begin < 0) {
+            begin = 0;
+        }
+
+        if (end > nsamples) {
+            end = nsamples;
+        }
+
+        v->begin = begin;
+        v->end = end;
     }
 
     /* Don't lock the reticle onto the last sample as an edge. */
-    if (next < cap_get_nsamples(top) - 1) {
+    if (next < nsamples) {
         v->target = next;
     }
 
     v->flags |= VIEW_PLOT_DIRTY;
+}
+
+
+void view_draw_gl(struct view *v)
+{
+    cap_t *c = v->cap;
+    double nsamples = cap_get_nsamples(c);
+    glLineWidth(2.5);
+    glColor3f(1.0, 0.0, 0.0);
+    glBegin(GL_LINES);
+    for (uint64_t i = 0; i < cap_get_nsamples(c); i++) {
+        glVertex3f(i/nsamples, cap_get_analog(c, i), 0.0);
+    }
+    glEnd();
 }

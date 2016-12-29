@@ -2,6 +2,7 @@
 set(GUI_SRC
     shaders.c
     display.c
+    display_gl.c
     pav_gui.c
     gui.c
     gui_event.c

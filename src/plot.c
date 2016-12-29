@@ -46,11 +46,13 @@ struct plot {
     char xlabel[PLOT_LABEL_MAXLEN];
     char ylabel[PLOT_LABEL_MAXLEN];
     char title[PLOT_LABEL_MAXLEN];
+    char *glyph;
     struct refcnt rcnt;
 };
 
 static void plot_free(const struct refcnt *ref);
 static void sprint_plot_view_title(view_t *v, char *s);
+
 
 /* Function: plot_from_view
  *
@@ -65,6 +67,7 @@ void plot_from_view(view_t *v, struct plot **plot)
     uint64_t nsamples;
     cap_t *cap = views_get_cap(v);
     adc_cal_t *cal;
+    uint64_t begin, end;
 
     pl = plot_create();
 
@@ -80,11 +83,15 @@ void plot_from_view(view_t *v, struct plot **plot)
     pl->y = calloc(nsamples, sizeof(double));
     pl->len = nsamples;
 
-    for (uint64_t i = 0, j = views_get_begin(v); i < nsamples; i++, j++) {
-        uint16_t sample = cap_get_analog(cap, i);
-        float v = adc_sample_to_voltage(sample, cal);
+    pl->glyph = views_get_glyph(v);
+
+    begin = views_get_begin(v);
+    end = views_get_end(v);
+    for (uint64_t i = 0, j = begin; j < end; i++, j++) {
+        uint16_t sample = cap_get_analog(cap, j);
+        float volt = adc_sample_to_voltage(sample, cal);
         pl->x[i] = j;
-        pl->y[i] = v;
+        pl->y[i] = volt;
     }
 
     pl->reticle = views_get_target(v) - views_get_begin(v);
@@ -102,6 +109,7 @@ void plot_from_view(view_t *v, struct plot **plot)
 
     *plot = pl;
 }
+
 
 void plot_to_texture(struct plot *pl, SDL_Texture *txt)
 {
@@ -144,6 +152,12 @@ void plot_to_cairo_surface(struct plot *pl, cairo_surface_t *cs)
     plenv(pl->x[0], pl->x[pl->len - 1], pl->ymin, pl->ymax + (pl->ymax / 10), 0, 0);
     plcol0(2);
     pllab(pl->xlabel, pl->ylabel, pl->title);
+
+    if (pl->glyph) {
+        plcol0(4);
+        plstring(pl->len, (PLFLT *) pl->x, (PLFLT *) pl->y, pl->glyph);
+    }
+
     plcol0(3);
     plline(pl->len, (PLFLT *) pl->x, (PLFLT *) pl->y);
 
@@ -188,8 +202,8 @@ static void sprint_plot_view_title(view_t *view, char *s)
         duration_scaled = duration * 1E3;
     }
 
-    snprintf(s, PLOT_LABEL_MAXLEN, "%'lu samples @ %.02f %s (%.2f %s) X%d",
-        nsamples, sampfreq_scaled, unit_ratemega, duration_scaled,
+    snprintf(s, PLOT_LABEL_MAXLEN, "%'lu samples @ %.02f %s (%.2f %s) X%.2f",
+        views_get_width(view), sampfreq_scaled, unit_ratemega, duration_scaled,
         tbase_unit, views_get_zoom(view));
 }
 

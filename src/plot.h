@@ -37,6 +37,7 @@ void plot_from_cap(cap_t *cap, plot_t **plot);
 void plot_from_view(view_t *v, plot_t **plot);
 void plot_to_cairo_surface(plot_t *pl, cairo_surface_t *cs);
 void plot_to_texture(plot_t *pl, SDL_Texture *txt);
+void plot_to_vbo(plot_t *pl, GLuint *vbo);
 
 plot_t *plot_create(void);
 plot_t *plot_addref(plot_t *p);

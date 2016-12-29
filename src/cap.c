@@ -390,6 +390,11 @@ uint16_t cap_get_analog(struct cap *c, uint64_t idx)
     return c->analog[idx];
 }
 
+float cap_get_analog_voltage(struct cap *c, uint64_t idx)
+{
+    return adc_sample_to_voltage(c->analog[idx], c->analog_cal);
+}
+
 void cap_set_analog(struct cap *c, uint64_t idx, uint16_t sample)
 {
     c->analog[idx] = sample;
@@ -488,6 +493,7 @@ void cap_set_note(struct cap *c, const char *s)
     strncpy(c->note, s, CAP_MAX_NOTE_LEN);
 }
 
+#if 0
 /* Function: cap_create_subcap
  *
  * Creates a subcapture, which is a structure containing a
@@ -539,10 +545,6 @@ cap_t *cap_create_subcap(struct cap *src, int64_t begin, int64_t end)
     return dst;
 }
 
-struct cap *cap_get_parent(struct cap *c)
-{
-    return c->parent;
-}
 
 int cap_get_nparents(struct cap *c)
 {
@@ -555,45 +557,30 @@ int cap_get_nparents(struct cap *c)
     }
     return nparents;
 }
-
-struct cap *cap_get_top(struct cap *c)
-{
-    struct cap *top = c;
-
-    while (NULL != top->parent) {
-        top = top->parent;
-    }
-    return top;
-}
+#endif
 
 uint64_t cap_next_edge(struct cap *c, uint64_t from)
 {
-    struct cap *top;
-    uint64_t next;
+    uint64_t next = from + 1;
 
-    top = cap_get_top(c);
-
-    for (next = from + 1; next < top->nsamples; next++) {
-        if (top->digital[from] != top->digital[next]) {
-            break;
+    for (int i = 0; i < 2 && next < c->nsamples; next++) {
+        if (c->digital[from] != c->digital[next]) {
+            i++;
         }
     }
 
-    if (next > top->nsamples)
-        next = top->nsamples;
+    if (next > c->nsamples)
+        next = c->nsamples;
 
     return next;
 }
 
 uint64_t cap_prev_edge(struct cap *c, uint64_t from)
 {
-    struct cap *top;
     int64_t prev;
 
-    top = cap_get_top(c);
-
-    for (prev = from - 1; prev > 0; prev--) {
-        if (top->digital[from] != top->digital[prev])
+    for (prev = from - 2; prev > 0; prev--) {
+        if (c->digital[from] != c->digital[prev])
             break;
     }
 
