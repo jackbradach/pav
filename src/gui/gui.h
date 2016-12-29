@@ -41,8 +41,8 @@ struct gui {
     bool quit;
     struct pav_opts *opts;
 
-    struct ch_view_list *views;
-    struct ch_view *view_active;
+    views_t *views;
+    view_t *active_view;
 
     GLint shader;
 

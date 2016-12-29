@@ -1,17 +1,15 @@
-# Remove when GTest fixes their support for the 'TEST' operator
-cmake_policy(SET CMP0064 OLD)
+
 
 set(TEST_SRCS
     tests.cpp
-
+    test_adc.cpp
+    test_cap.cpp
+    test_saleae.cpp
+    test_pa_spi.cpp
+    test_pa_usart.cpp
+    test_plot.cpp
+    test_proto.cpp
 )
-#test_adc.cpp
-#test_cap.cpp
-#test_saleae.cpp
-#test_pa_spi.cpp
-#test_pa_usart.cpp
-#test_plot.cpp
-#test_proto.cpp
 
 set(CTEST_OPTS "--build-run-dir ${CMAKE_CURRENT_BINARY_DIR}")
 add_custom_target(check
@@ -32,10 +30,10 @@ add_custom_target(copy_captures
             ${CMAKE_BINARY_DIR}/tests
 )
 
-#add_test(NAME AnalogDecode
-#    COMMAND pav -c100 --decode ${CMAKE_BINARY_DIR}/tests/uart_analog_115200_50mHz.bin.gz
-#    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-#)
+add_test(NAME AnalogDecode
+    COMMAND pav -l100 --decode ${CMAKE_BINARY_DIR}/tests/uart_analog_115200_50mHz.bin.gz
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
 
 add_dependencies(check ${CMAKE_PROJECT_NAME} ${CMAKE_PROJECT_NAME}_tests copy_captures)
 

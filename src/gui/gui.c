@@ -95,7 +95,7 @@ void gui_start(struct pav_opts *opts)
     cap_bundle_dropref(bun);
 
     views_populate_from_bundle(gui->bundle, &gui->views);
-    gui->view_active = TAILQ_FIRST(gui->views);
+    gui->active_view = views_first(gui->views);
 
     gui->quit = false;
 

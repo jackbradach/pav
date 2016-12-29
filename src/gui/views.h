@@ -3,11 +3,9 @@
 
 #include <stdint.h>
 
-#include "cap.h"
-#include "plot.h"
-#include "gui.h"
-#include "queue.h"
-#include "shaders.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 enum view_flags {
     VIEW_CLEAN = 0x0,
@@ -15,33 +13,41 @@ enum view_flags {
     VIEW_TEXTURE_DIRTY = 0x2
 };
 
-struct ch_view {
-    TAILQ_ENTRY(ch_view) entry;
-    cap_t *cap;
-    plot_t *pl;
-    SDL_Texture *txt;
-    shader_t *shader;
-    uint64_t sample_min;
-    uint64_t sample_max;
-    uint64_t sample_selected;
-    unsigned zoom_level;
-    uint32_t flags;
-};
-TAILQ_HEAD(ch_view_list, ch_view);
+typedef struct view view_t;
+typedef struct views views_t;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "cap.h"
+#include "plot.h"
+#include "gui.h"
+#include "queue.h"
+#include "shaders.h"
 
-void views_populate_from_bundle(cap_bundle_t *b, struct ch_view_list **v);
-void views_create_list(struct ch_view_list **l);
-void views_add_ch(struct ch_view_list *v, cap_t *c);
-void views_refresh(struct ch_view *v);
 
-void views_zoom_in(struct ch_view *v);
-void views_zoom_out(struct ch_view *v);
-void views_pan_left(struct ch_view *v);
-void views_pan_right(struct ch_view *v);
+void views_populate_from_bundle(cap_bundle_t *b, views_t **v);
+void views_create_list(views_t **l);
+void views_add_ch(views_t *v, cap_t *c);
+void views_refresh(view_t *v);
+unsigned long views_get_begin(view_t *v);
+unsigned long views_get_end(view_t *v);
+unsigned long views_get_width(view_t *v);
+
+int64_t views_get_target(view_t *v);
+void views_set_target(view_t *v, int64_t n);
+
+SDL_Texture *views_get_texture(view_t *v);
+
+view_t *views_first(views_t *vl);
+view_t *views_next(view_t *v);
+view_t *views_prev(view_t *v);
+view_t *views_last(views_t *vl);
+cap_t *views_get_cap(view_t *v);
+
+
+
+void views_zoom_in(struct view *v);
+void views_zoom_out(struct view *v);
+void views_pan_left(struct view *v);
+void views_pan_right(struct view *v);
 
 #ifdef __cplusplus
 }

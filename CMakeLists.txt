@@ -36,7 +36,8 @@ enable_testing()
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/gui
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/gui
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/gui/shaders
 )
 
 # Find external libraries
@@ -79,6 +80,8 @@ target_link_libraries(${BINARY_NAME} ${LIBS} shaders)
 
 # Build the unit tests if Debug or Coverage
 if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+    # Remove when GTest fixes their support for the 'TEST' operator
+    cmake_policy(SET CMP0064 OLD)
     find_package(GTest REQUIRED)
     include_directories(${GTEST_INCLUDE_DIRS})
     add_subdirectory(tests)
@@ -88,6 +91,7 @@ if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
         EXCLUDE_FROM_ALL
         $<TARGET_OBJECTS:tests>
         $<TARGET_OBJECTS:src>
+        $<TARGET_OBJECTS:gui>
     )
     target_link_libraries(${BINARY_NAME}_tests ${LIBS})
 endif()

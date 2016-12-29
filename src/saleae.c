@@ -76,19 +76,6 @@ int saleae_import_analog(FILE *fp, struct cap_bundle **new_bundle)
         /* Make a digital version of the analog capture */
         cap_analog_adc_ttl(cap);
         cap_bundle_add(bun, cap);
-
-        {
-            uint16_t min, max, diff;
-            min = cap_get_analog_min(cap);
-            max = cap_get_analog_max(cap);
-            diff = max - min;
-            printf("Analog import min/max: %d/%d\n", min, max);
-            printf("Analog sample range: %d (%.0f bits)\n",
-                diff, floor(log2(diff) + 1));
-            printf("Analog resolution: %.2f mV\n",
-                1000 * (20.0/4096));
-
-        }
     }
 
     free(abuf);

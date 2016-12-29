@@ -21,27 +21,34 @@ void display_init(void)
 void display_refresh(void)
 {
     struct gui *g = gui_get_instance();
-    struct ch_view *view;
+    view_t *v;
     int idx = 0;
 
     SDL_RenderClear(g->renderer);
 
-    TAILQ_FOREACH(view, g->views, entry) {
+    v = views_first(g->views);
+    while (NULL != v) {
         SDL_Rect dstrect;
+        SDL_Texture *txt;
         int w, h;
-        views_refresh(view);
-        if (view == g->view_active) {
+
+        views_refresh(v);
+
+        if (v == g->active_view) {
             glUseProgram(g->shader);
         } else {
             glUseProgram(0);
         }
-        SDL_QueryTexture(view->txt, NULL, NULL, &w, &h);
+
+        txt = views_get_texture(v);
+        SDL_QueryTexture(txt, NULL, NULL, &w, &h);
         dstrect.x = 0;
         dstrect.y = idx * h;
         dstrect.w = w;
         dstrect.h = h;
-        SDL_RenderCopy(g->renderer, view->txt, NULL, &dstrect);
+        SDL_RenderCopy(g->renderer, txt, NULL, &dstrect);
         idx++;
+        v = views_next(v);
     }
 
     SDL_RenderPresent(g->renderer);

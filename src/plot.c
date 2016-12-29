@@ -34,6 +34,7 @@
 #include "cairo/cairo.h"
 
 #include "plot.h"
+#include "views.h"
 
 #define PLOT_LABEL_MAXLEN 64
 
@@ -51,12 +52,59 @@ struct plot {
 static void plot_free(const struct refcnt *ref);
 static void sprint_plot_cap_title(cap_t *cap, char *s);
 
+/* Function: plot_from_view
+ *
+ * Creates a plot from a view structure
+ *
+ */
+void plot_from_view(view_t *v, struct plot **plot)
+{
+    struct plot *pl;
+    char str_label[PLOT_LABEL_MAXLEN];
+    uint16_t smin, smax;
+    uint64_t nsamples;
+    cap_t *cap = views_get_cap(v);
+    adc_cal_t *cal;
+
+    pl = plot_create();
+
+    /* Set the y-axis scales to the voltage range */
+    smin = cap_get_analog_min(cap);
+    smax = cap_get_analog_max(cap);
+    cal = cap_get_analog_cal(cap);
+    pl->ymin = adc_sample_to_voltage(smin, cal);
+    pl->ymax = adc_sample_to_voltage(smax, cal);
+
+    nsamples = views_get_width(v);
+    pl->x = calloc(nsamples, sizeof(double));
+    pl->y = calloc(nsamples, sizeof(double));
+    pl->len = nsamples;
+
+    for (uint64_t i = 0, j = views_get_begin(v); i < nsamples; i++, j++) {
+        uint16_t sample = cap_get_analog(cap, i);
+        float v = adc_sample_to_voltage(sample, cal);
+        pl->x[i] = j;
+        pl->y[i] = v;
+    }
+
+    pl->reticle = views_get_target(v) - views_get_begin(v);
+    if (pl->reticle > 0) {
+        snprintf(str_label, PLOT_LABEL_MAXLEN, "Sample @ %'lu = %.02f V",
+            views_get_target(v), pl->y[pl->reticle]);
+        plot_set_xlabel(pl, str_label);
+    }
+//    plot_set_ylabel(pl, "Volts");
+    sprint_plot_cap_title(cap, pl->title);
+
+    *plot = pl;
+}
+
 /* Function: plot_from_cap
  *
  * Creates a plot from a capture structure
  *
  */
-void plot_from_cap(cap_t *cap, int64_t idx, struct plot **plot)
+void plot_from_cap(cap_t *cap, struct plot **plot)
 {
     struct plot *pl;
     char str_label[PLOT_LABEL_MAXLEN];
@@ -87,11 +135,6 @@ void plot_from_cap(cap_t *cap, int64_t idx, struct plot **plot)
         pl->y[i] = v;
     }
 
-    if (idx > 0) {
-        pl->reticle = idx - offset;
-        snprintf(str_label, PLOT_LABEL_MAXLEN, "Sample @ %'lu = %.02f V",
-            idx, pl->y[idx - offset]);
-    }
     plot_set_xlabel(pl, str_label);
     plot_set_ylabel(pl, "Volts");
     sprint_plot_cap_title(cap, pl->title);

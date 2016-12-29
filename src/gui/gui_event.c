@@ -103,31 +103,31 @@ static void process_keyboard_input(SDL_KeyboardEvent *key)
             break;
         /* Enbiggen! */
         case SDLK_z:
-            views_zoom_in(gui->view_active);
+            views_zoom_in(gui->active_view);
             break;
         /* Re-smallify */
         case SDLK_x:
-            views_zoom_out(gui->view_active);
+            views_zoom_out(gui->active_view);
             break;
         case SDLK_LEFT:
-            views_pan_left(gui->view_active);
+            views_pan_left(gui->active_view);
             break;
         case SDLK_RIGHT:
-            views_pan_right(gui->view_active);
+            views_pan_right(gui->active_view);
             break;
         case SDLK_UP: {
-            if (gui->view_active == TAILQ_FIRST(gui->views)) {
-                gui->view_active = TAILQ_LAST(gui->views, ch_view_list);
+            if (gui->active_view == views_first(gui->views)) {
+                gui->active_view = views_last(gui->views);
             } else {
-                gui->view_active = TAILQ_PREV(gui->view_active, ch_view_list, entry);
+                gui->active_view = views_prev(gui->active_view);
             }
             break;
         }
         case SDLK_DOWN:
-            if (gui->view_active == TAILQ_LAST(gui->views, ch_view_list)) {
-                gui->view_active = TAILQ_FIRST(gui->views);
+            if (gui->active_view == views_last(gui->views)) {
+                gui->active_view = views_first(gui->views);
             } else {
-                gui->view_active = TAILQ_NEXT(gui->view_active, entry);
+                gui->active_view = views_next(gui->active_view);
             }
             break;
         }

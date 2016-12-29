@@ -217,7 +217,7 @@ void cap_dropref(struct cap *c)
     refcnt_dec(&c->rcnt);
 }
 
-/* Function: cap_getref
+/* Function: cap_nref
  *
  * Returns the number of active references to a capture
  *
@@ -230,7 +230,7 @@ void cap_dropref(struct cap *c)
  * See Also:
  *  <cap_addref>, <cap_dropref>
  */
-unsigned cap_getref(cap_t *c)
+unsigned cap_nref(cap_t *c)
 {
     if (NULL == c)
         return 0;
@@ -333,7 +333,7 @@ void cap_bundle_dropref(struct cap_bundle *b)
     refcnt_dec(&b->rcnt);
 }
 
-/* Function: cap_bundle_getref
+/* Function: cap_bundle_nref
  *
  * Returns the number of active references to a capture bundle
  *
@@ -346,7 +346,7 @@ void cap_bundle_dropref(struct cap_bundle *b)
  * See Also:
  *  <cap_bundle_addref>, <cap_bundle_dropref>
  */
-unsigned cap_bundle_getref(struct cap_bundle *b)
+unsigned cap_bundle_nref(struct cap_bundle *b)
 {
     if (NULL == b)
         return 0;
