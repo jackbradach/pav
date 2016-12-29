@@ -3,6 +3,7 @@
 set(TEST_SRCS
     tests.cpp
     test_adc.cpp
+    test_audio.cpp
     test_cap.cpp
     test_saleae.cpp
     test_pa_spi.cpp

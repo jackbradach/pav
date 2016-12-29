@@ -1,5 +1,6 @@
 
 set(GUI_SRC
+    audio.c
     shaders.c
     display.c
     display_gl.c
