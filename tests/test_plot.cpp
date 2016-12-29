@@ -58,41 +58,44 @@ TEST(Plot, AccessorsMutators) {
     plot_dropref(p);
 }
 
-TEST(Plot, PlotFromAnalogCap) {
+TEST(Plot, PlotFromView) {
     cap_bundle_t *b;
-    cap_t *cap;
+    views_t *vl;
+    view_t *v;
     plot_t *p;
     const char test_file[] = "uart_analog_115200_50mHz.bin.gz";
     FILE *fp = fopen(test_file, "rb");
 
     saleae_import_analog(fp, &b);
-
-    cap = cap_bundle_first(b);
-
-    plot_from_cap(cap, &p);
+    views_populate_from_bundle(b, &vl);
     cap_bundle_dropref(b);
+
+    v = views_first(vl);
+    plot_from_view(v, &p);
 
     plot_dropref(p);
 }
 
-TEST(Plot, PlotToCairoSurface) {
+TEST(Plot, DISABLED_PlotToCairoSurface) {
     cap_bundle_t *b;
-    cap_t *cap;
-    plot_t *p;
+    views_t *vl;
+    view_t *v;
+    plot_t *pl;
     cairo_surface_t *cs;
     const char test_file[] = "uart_analog_115200_50mHz.bin.gz";
     FILE *fp = fopen(test_file, "rb");
 
     saleae_import_analog(fp, &b);
-    cap = cap_bundle_first(b);
-
-    plot_from_cap(cap, &p);
+    views_populate_from_bundle(b, &vl);
     cap_bundle_dropref(b);
 
-    cs = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 640, 480);
-    plot_to_cairo_surface(p, cs);
+    v = views_first(vl);
+    plot_from_view(v, &pl);
 
-    plot_dropref(p);
+    cs = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 640, 480);
+    plot_to_cairo_surface(pl, cs);
+
+    plot_dropref(pl);
     cairo_surface_destroy(cs);
     fclose(fp);
 }
