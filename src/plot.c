@@ -50,7 +50,7 @@ struct plot {
 };
 
 static void plot_free(const struct refcnt *ref);
-static void sprint_plot_cap_title(cap_t *cap, char *s);
+static void sprint_plot_view_title(view_t *v, char *s);
 
 /* Function: plot_from_view
  *
@@ -94,50 +94,11 @@ void plot_from_view(view_t *v, struct plot **plot)
         plot_set_xlabel(pl, str_label);
     }
 //    plot_set_ylabel(pl, "Volts");
-    sprint_plot_cap_title(cap, pl->title);
+    sprint_plot_view_title(v, pl->title);
 
-    *plot = pl;
-}
-
-/* Function: plot_from_cap
- *
- * Creates a plot from a capture structure
- *
- */
-void plot_from_cap(cap_t *cap, struct plot **plot)
-{
-    struct plot *pl;
-    char str_label[PLOT_LABEL_MAXLEN];
-    uint16_t smin, smax;
-    uint64_t offset;
-    uint64_t nsamples;
-    adc_cal_t *cal;
-
-    pl = plot_create();
-
-    /* Set the y-axis scales to the voltage range */
-    smin = cap_get_analog_min(cap);
-    smax = cap_get_analog_max(cap);
-    cal = cap_get_analog_cal(cap);
-    pl->ymin = adc_sample_to_voltage(smin, cal);
-    pl->ymax = adc_sample_to_voltage(smax, cal);
-
-    nsamples = cap_get_nsamples(cap);
-    offset = cap_get_offset(cap);
-    pl->x = calloc(nsamples, sizeof(double));
-    pl->y = calloc(nsamples, sizeof(double));
-    pl->len = nsamples;
-
-    for (uint64_t i = 0, j = offset; i < nsamples; i++, j++) {
-        uint16_t sample = cap_get_analog(cap, i);
-        float v = adc_sample_to_voltage(sample, cal);
-        pl->x[i] = j;
-        pl->y[i] = v;
+    if (NULL != *plot) {
+        plot_dropref(*plot);
     }
-
-    plot_set_xlabel(pl, str_label);
-    plot_set_ylabel(pl, "Volts");
-    sprint_plot_cap_title(cap, pl->title);
 
     *plot = pl;
 }
@@ -182,7 +143,7 @@ void plot_to_cairo_surface(struct plot *pl, cairo_surface_t *cs)
     pl_cmd(PLESC_DEVINIT, c);
     plenv(pl->x[0], pl->x[pl->len - 1], pl->ymin, pl->ymax + (pl->ymax / 10), 0, 0);
     plcol0(2);
-    //pllab(pl->xlabel, pl->ylabel, pl->title);
+    pllab(pl->xlabel, pl->ylabel, pl->title);
     plcol0(3);
     plline(pl->len, (PLFLT *) pl->x, (PLFLT *) pl->y);
 
@@ -196,9 +157,9 @@ void plot_to_cairo_surface(struct plot *pl, cairo_surface_t *cs)
     cairo_destroy(c);
 }
 
-/* Extracts a plot header from a cap_t. */
-static void sprint_plot_cap_title(cap_t *cap, char *s)
+static void sprint_plot_view_title(view_t *view, char *s)
 {
+    cap_t *cap = views_get_cap(view);
     uint64_t nsamples = cap_get_nsamples(cap);
     float period = cap_get_period(cap);
     double sampfreq = 1.0 / period;
@@ -227,10 +188,10 @@ static void sprint_plot_cap_title(cap_t *cap, char *s)
         duration_scaled = duration * 1E3;
     }
 
-    snprintf(s, PLOT_LABEL_MAXLEN, "%'lu samples @ %.02f %s (%.2f %s)",
-        nsamples, sampfreq_scaled, unit_ratemega, duration_scaled, tbase_unit);
+    snprintf(s, PLOT_LABEL_MAXLEN, "%'lu samples @ %.02f %s (%.2f %s) X%d",
+        nsamples, sampfreq_scaled, unit_ratemega, duration_scaled,
+        tbase_unit, views_get_zoom(view));
 }
-
 
 /* Function: plot_create
  *

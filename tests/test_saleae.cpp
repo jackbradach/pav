@@ -18,13 +18,8 @@ TEST(SaleaeTest, ImportAnalogCapture) {
     cap_bundle_t *bun;
     cap_t *cur;
 
-    char path[512] = {0};
-    if (strlen(SAMPLE_PATH) > 0)
-        strcat(path, SAMPLE_PATH);
-    strcat(path, test_file);
-
     unsigned cap_count = 0;
-    FILE *fp = fopen(path, "rb");
+    FILE *fp = fopen(test_file, "rb");
     saleae_import_analog(fp, &bun);
 
     ASSERT_TRUE(NULL != bun);

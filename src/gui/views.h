@@ -33,8 +33,11 @@ unsigned long views_get_width(view_t *v);
 
 int64_t views_get_target(view_t *v);
 void views_set_target(view_t *v, int64_t n);
+void views_set_range(view_t *v, int64_t begin, int64_t end);
+
 
 SDL_Texture *views_get_texture(view_t *v);
+unsigned views_get_zoom(view_t *v);
 
 view_t *views_first(views_t *vl);
 view_t *views_next(view_t *v);

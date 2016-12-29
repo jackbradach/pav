@@ -11,7 +11,7 @@ struct view {
     uint64_t begin;
     uint64_t end;
     int64_t target;
-    unsigned zoom_level;
+    unsigned zoom;
     uint32_t flags;
 };
 TAILQ_HEAD(view_list, view);
@@ -41,6 +41,11 @@ cap_t *views_get_cap(view_t *v)
 SDL_Texture *views_get_texture(view_t *v)
 {
     return v->txt;
+}
+
+unsigned views_get_zoom(view_t *v)
+{
+    return v->zoom;
 }
 
 view_t *views_first(views_t *vl)
@@ -77,6 +82,24 @@ unsigned long views_get_end(view_t *v)
 unsigned long views_get_width(view_t *v)
 {
     return(v->end - v->begin);
+}
+
+void views_set_range(view_t *v, int64_t begin, int64_t end)
+{
+    cap_t *c = views_get_cap(v);
+    uint64_t nsamples = cap_get_nsamples(c);
+
+    if (begin > 0) {
+        v->begin = begin;
+    } else {
+        v->begin = 0;
+    }
+
+    if ((end > 0) && (end < nsamples)) {
+        v->end = end;
+    } else {
+        v->end = nsamples;
+    }
 }
 
 int64_t views_get_target(view_t *v)
@@ -122,6 +145,9 @@ struct view *view_from_ch(cap_t *c)
     v = calloc(1, sizeof(struct view));
     v->cap = cap_addref(c);
     v->target = cap_get_nsamples(c) / 2;
+    v->begin = 0;
+    v->end = cap_get_nsamples(c);
+    v->zoom = 1;
     v->flags |= VIEW_PLOT_DIRTY;
     return v;
 }
@@ -141,10 +167,9 @@ void views_destroy(struct views *vl)
 
 void views_refresh(struct view *v)
 {
-    /* Refresh the plot if the cap changed (eg, subcap view) */
+    /* Refresh the plot if needed (eg, zoom / pan) */
     if (v->flags & VIEW_PLOT_DIRTY) {
-        plot_dropref(v->pl);
-        plot_from_cap(v->cap, &v->pl);
+        plot_from_view(v, &v->pl);
         v->flags &= ~VIEW_PLOT_DIRTY;
         v->flags |= VIEW_TEXTURE_DIRTY;
     }
@@ -158,28 +183,41 @@ void views_refresh(struct view *v)
 
 void views_zoom_in(struct view *v)
 {
-    cap_t *old, *top;
-    uint64_t z0, z1;
+    int64_t z0, z1;
     uint64_t nsamples;
+    uint64_t znsamples;
 
-    top = cap_get_top(v->cap);
     nsamples = cap_get_nsamples(v->cap);
 
-    // calculate z0/z1 around selected sample
-    // width is going to be based on window size
-    // zoom_level * period / nsamples?
-    // "if our display sampling rate is doubled"
-    //zperiod = cap_get_period(v->cap) / v->zoom_level;
+    znsamples = nsamples / (v->zoom + 1);
+    z0 = v->target - (znsamples / 2);
+    z1 = v->target + (znsamples / 2);
 
+    printf("znsamples: %'lu z0: %'ld z1: %'ld target: %'ld\n",
+        znsamples, z0, z1, v->target);
 
-    z0 = (cap_get_nsamples(v->cap) / 4);
-    z1 = (cap_get_nsamples(v->cap) - z0);
+    /* Handle zooming at edges; it'll redistribute to the left or
+     * right as needed.
+     */
+    if (z0 < 0) {
+        z1 += -z0;
+        z0 += z0;
+    }
+
+    if (z1 >= nsamples) {
+        z0 -= (z1 - nsamples);
+        z1 -= (z1 - nsamples);
+    }
+
+    if (z0 < 0) {
+        printf("MAXIMUM ZOOM\n");
+        return;
+    }
 
     // TODO - critical section
-    old = v->cap;
-    v->cap = cap_create_subcap(v->cap, z0, z1);
-    if (old != top)
-        cap_dropref(old);
+    v->begin = z0;
+    v->end = z1;
+    v->zoom++;
     v->flags |= VIEW_PLOT_DIRTY;
 }
 
