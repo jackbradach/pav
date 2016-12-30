@@ -29,8 +29,12 @@
 extern "C" {
 #endif
 
-void audio_init(void);
+enum sfx_id {
+    SFX_CLICK = 0;
+};
 
+int audio_init(void);
+Mix_Chunk *audio_get_chunk(enum sfx_id *id);
 
 #ifdef __cplusplus
 }

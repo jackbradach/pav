@@ -57,6 +57,10 @@ find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIR})
 list(APPEND LIBS ${SDL2_LIBRARY})
 
+find_package(SDL2_mixer REQUIRED)
+include_directories(${SDLMIXER_INCLUDE_DIR})
+list(APPEND LIBS ${SDLMIXER_LIBRARY})
+
 find_package(OpenGL REQUIRED)
 include_directories(${OPENGL_INCLUDE_DIRS})
 list(APPEND LIBS ${OPENGL_LIBRARIES})

@@ -58,7 +58,7 @@ TEST(Plot, AccessorsMutators) {
     plot_dropref(p);
 }
 
-TEST(Plot, PlotFromView) {
+TEST(Plot, DISABLED_PlotFromView) {
     cap_bundle_t *b;
     views_t *vl;
     view_t *v;

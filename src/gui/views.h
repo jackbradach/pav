@@ -26,7 +26,7 @@ typedef struct views views_t;
 #include "shaders.h"
 
 
-void views_populate_from_bundle(cap_bundle_t *b, views_t **v);
+void views_populate_from_bundle(cap_bundle_t *b, views_t **vl);
 void views_create_list(views_t **l);
 void views_add_ch(views_t *v, cap_t *c);
 void views_refresh(view_t *v);
