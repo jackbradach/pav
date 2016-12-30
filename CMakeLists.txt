@@ -38,6 +38,7 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/gui
     ${CMAKE_CURRENT_SOURCE_DIR}/src/gui/shaders
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/gui/audio
 )
 
 # Find external libraries
@@ -81,12 +82,14 @@ list(APPEND LIBS m)
 add_subdirectory(src)
 add_subdirectory(src/gui)
 add_subdirectory(src/gui/shaders)
+add_subdirectory(src/gui/audio)
 
 # Build the main executable
 add_executable(${BINARY_NAME}
     $<TARGET_OBJECTS:main>
     $<TARGET_OBJECTS:src>
-    $<TARGET_OBJECTS:gui>)
+    $<TARGET_OBJECTS:gui>
+    $<TARGET_OBJECTS:res_audio>)
 target_link_libraries(${BINARY_NAME} ${LIBS} shaders)
 
 # Build the unit tests if Debug or Coverage

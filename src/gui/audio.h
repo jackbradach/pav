@@ -24,17 +24,18 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <SDL_mixer.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 enum sfx_id {
-    SFX_CLICK = 0;
+    SFX_CLICK = 0
 };
 
 int audio_init(void);
-Mix_Chunk *audio_get_chunk(enum sfx_id *id);
+Mix_Chunk *audio_get_chunk(enum sfx_id id);
 
 #ifdef __cplusplus
 }

@@ -1,12 +1,14 @@
 #include <SDL2/SDL.h>
 #include <SDL_mixer.h>
 
+#include "audio.h"
+
 static int chunkify_sounds(void);
 
 Mix_Chunk *sfx_click = NULL;
 
 
-Mix_Chunk *audio_get_chunk(enum sfx_id *id)
+Mix_Chunk *audio_get_chunk(enum sfx_id id)
 {
     switch (id) {
     case SFX_CLICK:
@@ -50,5 +52,3 @@ static int chunkify_sounds(void)
 
     return 0;
 }
-
-#include "sfx_click.c"
