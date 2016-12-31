@@ -3,7 +3,7 @@
 
 #include "audio.h"
 
-TEST(AudioTest, Init) {
+TEST(AudioTest, DISABLED_Init) {
     int rc;
 
     rc = SDL_Init(SDL_INIT_AUDIO);

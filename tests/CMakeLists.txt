@@ -39,7 +39,7 @@ add_test(NAME AnalogDecode
 add_dependencies(check ${CMAKE_PROJECT_NAME} ${CMAKE_PROJECT_NAME}_tests tests copy_captures)
 
 # Create a 'coverage' target and make sure it builds the binaries!
-if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
+if(CMAKE_BUILD_TYPE STREQUAL "Coverage")
     setup_target_for_coverage(coverage
         "${CMAKE_CTEST_COMMAND}"
         cov
@@ -48,11 +48,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
 endif()
 
 # Tarball up coverage results
-if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
-set(CPACK_GENERATOR "TGZ")
-set(CPACK_SOURCE_INSTALLED_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR}/cov/)
-set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-coverage")
-include(CPack)
-#add_dependencies(package, coverage)
-
+if(CMAKE_BUILD_TYPE STREQUAL "Coverage")
+    set(CPACK_GENERATOR "TGZ")
+    set(CPACK_SOURCE_INSTALLED_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR}/cov/)
+    set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-coverage")
+    include(CPack)
+    #add_dependencies(package, coverage)
 endif()

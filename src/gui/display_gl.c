@@ -68,7 +68,7 @@ void display_gl_refresh(void)
 
         // glUseProgram(v->shader)
         glBindBuffer(GL_ARRAY_BUFFER, views_get_vbo(v));
-        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(views_get_vbo(v));
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0 ,0);
         glDrawArrays(GL_LINE_STRIP, 0, views_get_width(v));
         glDisableVertexAttribArray(0);

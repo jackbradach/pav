@@ -11,6 +11,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
     include(CodeCoverage)
 endif()
 
+if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+    include(CTest)
+endif()
+
 
 include(assert_out_of_source_build)
 assert_out_of_source_build(${CMAKE_PROJECT_NAME})
@@ -23,7 +27,6 @@ if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
     # The CodeCoverage library takes care of adding the needed GCC options
     set(CMAKE_C_FLAGS "${DEFAULT_C_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS}")
-    enable_testing()
 elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set (CMAKE_C_FLAGS "${DEFAULT_C_FLAGS} -g -O3")
     set (CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS}")
@@ -31,8 +34,6 @@ else()
     set (CMAKE_C_FLAGS "${DEFAULT_C_FLAGS} -O3")
     set (CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS}")
 endif()
-
-enable_testing()
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/src

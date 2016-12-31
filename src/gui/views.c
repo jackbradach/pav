@@ -354,9 +354,5 @@ void view_draw_gl(struct view *v)
     double nsamples = cap_get_nsamples(c);
     glLineWidth(2.5);
     glColor3f(1.0, 0.0, 0.0);
-    glBegin(GL_LINES);
-    for (uint64_t i = 0; i < cap_get_nsamples(c); i++) {
-        glVertex3f(i/nsamples, cap_get_analog(c, i), 0.0);
-    }
     glEnd();
 }
