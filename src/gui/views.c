@@ -7,18 +7,32 @@
 
 struct view {
     TAILQ_ENTRY(view) entry;
-    GLuint vbo_vertices;
-    GLuint vbo_idx;
+
     cap_t *cap;
     plot_t *pl;
-    SDL_Texture *txt;
-    shader_t *shader;
+
     uint64_t begin;
     uint64_t end;
     int64_t target;
     float zoom;
     uint32_t flags;
+
     char *glyph;
+
+    /* Parameters which affect rendering */
+    GLuint vbo_vertices;
+    GLuint vbo_idx;
+    shader_t *shader;
+    float line_width;
+    struct {
+        float red;
+        float green;
+        float blue;
+        float alpha;
+    } color;
+
+    SDL_Texture *txt; // Drop or use for background?
+
 };
 TAILQ_HEAD(view_list, view);
 
@@ -59,6 +73,25 @@ GLuint views_get_vbo_vertices(view_t *v)
     return v->vbo_vertices;
 }
 
+float views_get_line_width(view_t *v)
+{
+    return v->line_width;
+}
+
+float views_get_red(view_t *v)
+{
+    return v->color.red;
+}
+
+float views_get_green(view_t *v)
+{
+    return v->color.green;
+}
+
+float views_get_blue(view_t *v)
+{
+    return v->color.blue;
+}
 
 view_t *views_first(views_t *vl)
 {
@@ -169,9 +202,13 @@ struct view *view_from_ch(cap_t *c)
     v->begin = 0;
     v->end = cap_get_nsamples(c);
     v->zoom = 1;
-    v->flags |= VIEW_PLOT_DIRTY;
+    v->flags |= VIEW_PLOT_DIRTY; // XXX - probably drop this
     v->flags |= VIEW_VBO_DIRTY;
 
+    // XXX - temporary fuckery for testing
+    v->color.red = .6;
+    v->color.green = .98;
+    v->color.blue = .565;
 
     return v;
 }
@@ -182,6 +219,8 @@ void views_to_vertices(view_t *v, float **vertices)
     float *points;
     int idx, i;
 
+    printf("vmin/max = %.02f/%.02f\n", cap_get_analog_vmin(v->cap),
+        cap_get_analog_vmax(v->cap));
     points = calloc(2 * views_get_width(v), sizeof(float));
     for (i = 0, idx = v->begin; idx < v->end; idx++, i++) {
         points[(2 * i)] = (float) i / (float) views_get_width(v);
@@ -231,6 +270,7 @@ void views_refresh(struct view *v)
         /* Bind vertices to a VBO; existing buffers look to get
          * auto-cleaned when a different binding is set.
          */
+        // FIXME: this only needs to happen when the cap is loaded!
         glGenBuffers(1, &v->vbo_vertices);
         glBindBuffer(GL_ARRAY_BUFFER, v->vbo_vertices);
         glBufferData(GL_ARRAY_BUFFER, len_vertices, points, GL_STATIC_DRAW);

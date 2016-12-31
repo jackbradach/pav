@@ -395,6 +395,17 @@ float cap_get_analog_voltage(struct cap *c, uint64_t idx)
     return adc_sample_to_voltage(c->analog[idx], c->analog_cal);
 }
 
+float cap_get_analog_vmin(struct cap *c)
+{
+    return adc_sample_to_voltage(c->analog_min, c->analog_cal);
+}
+
+float cap_get_analog_vmax(struct cap *c)
+{
+    return adc_sample_to_voltage(c->analog_max, c->analog_cal);
+}
+
+
 void cap_set_analog(struct cap *c, uint64_t idx, uint16_t sample)
 {
     c->analog[idx] = sample;

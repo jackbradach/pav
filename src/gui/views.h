@@ -57,6 +57,11 @@ void views_zoom_out(struct view *v);
 void views_pan_left(struct view *v);
 void views_pan_right(struct view *v);
 
+float views_get_line_width(view_t *v);
+float views_get_red(view_t *v);
+float views_get_green(view_t *v);
+float views_get_blue(view_t *v);
+
 #ifdef __cplusplus
 }
 #endif
