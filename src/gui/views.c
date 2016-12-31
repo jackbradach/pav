@@ -7,7 +7,8 @@
 
 struct view {
     TAILQ_ENTRY(view) entry;
-    GLuint vbo;
+    GLuint vbo_vertices;
+    GLuint vbo_idx;
     cap_t *cap;
     plot_t *pl;
     SDL_Texture *txt;
@@ -48,10 +49,16 @@ SDL_Texture *views_get_texture(view_t *v)
     return v->txt;
 }
 
-GLuint views_get_vbo(view_t *v)
+GLuint views_get_vbo_idx(view_t *v)
 {
-    return v->vbo;
+    return v->vbo_idx;
 }
+
+GLuint views_get_vbo_vertices(view_t *v)
+{
+    return v->vbo_vertices;
+}
+
 
 view_t *views_first(views_t *vl)
 {
@@ -178,13 +185,9 @@ void views_to_vertices(view_t *v, float **vertices)
     points = calloc(2 * views_get_width(v), sizeof(float));
     for (i = 0, idx = v->begin; idx < v->end; idx++, i++) {
         points[(2 * i)] = (float) i / (float) views_get_width(v);
-        points[(2 * i) + 1] = (float) cap_get_analog_voltage(v->cap, idx);
+        points[(2 * i) + 1] = cap_get_analog_voltage(v->cap, i);
     }
 
-    for (i = 0; i < 20; i++) {
-        printf("i %d x: %f y: %f\n",
-        i, points[(2*i)], points[(2*i) + 1]);
-    }
     *vertices = points;
 }
 
@@ -218,17 +221,29 @@ void views_refresh(struct view *v)
 
     /* Refresh the VBO */
     if (v->flags & VIEW_VBO_DIRTY) {
+        GLsizeiptr len_vertices = 2 * cap_get_nsamples(v->cap) * sizeof(float);
+        GLsizeiptr len_idx = views_get_width(v) * sizeof(unsigned);
+        unsigned *idx = calloc(views_get_width(v), sizeof(unsigned));
         float *points;
-        GLsizeiptr len = 2 * views_get_width(v) * sizeof(float);
+
         views_to_vertices(v, &points);
 
         /* Bind vertices to a VBO; existing buffers look to get
          * auto-cleaned when a different binding is set.
          */
-        glGenBuffers(1, &v->vbo);
-        glBindBuffer(GL_ARRAY_BUFFER, v->vbo);
-        glBufferData(GL_ARRAY_BUFFER, len, points, GL_STATIC_DRAW);
+        glGenBuffers(1, &v->vbo_vertices);
+        glBindBuffer(GL_ARRAY_BUFFER, v->vbo_vertices);
+        glBufferData(GL_ARRAY_BUFFER, len_vertices, points, GL_STATIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        /* Regenerate the indices to match the view range */
+        for (unsigned i = v->begin, j = 0; i < v->end; i++, j++) {
+            idx[j] = i;
+        }
+        glGenBuffers(1, &v->vbo_idx);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, v->vbo_idx);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, len_idx * sizeof(unsigned), idx, GL_STATIC_DRAW);
+
         v->flags &= ~VIEW_VBO_DIRTY;
     }
 }

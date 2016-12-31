@@ -51,30 +51,39 @@ void display_gl_refresh(void)
 {
     struct gui *g = gui_get_instance();
     view_t *v;
-    int idx = 0;
 
     glClearColor(0.0f, 0.2f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, 1024, 768);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
+    double w = glutGet( GLUT_WINDOW_WIDTH );
+    double h = glutGet( GLUT_WINDOW_HEIGHT );
+    glOrtho( 0, w, 0, h, -1, 1 );
+
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    glLineWidth(2.0);
-    glColor3b(0xff, 0, 0);
+
+    glLineWidth(1.0);
+    glColor3f(1.0, 0, 0);
     v = views_first(g->views);
     while (NULL != v) {
+        size_t vlen;
+
         views_refresh(v);
 
+        vlen = views_get_width(v);
+
         // glUseProgram(v->shader)
-        glBindBuffer(GL_ARRAY_BUFFER, views_get_vbo(v));
-        glEnableVertexAttribArray(views_get_vbo(v));
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0 ,0);
-        glDrawArrays(GL_LINE_STRIP, 0, views_get_width(v));
+        glBindBuffer(GL_ARRAY_BUFFER, views_get_vbo_vertices(v));
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, views_get_vbo_idx(v));
+        glDrawElements(GL_LINE_STRIP, views_get_width(v), GL_UNSIGNED_INT, NULL);
         glDisableVertexAttribArray(0);
         glUseProgram(0);
 
-        idx++;
         v = views_next(v);
     }
     SDL_GL_SwapWindow(gui_get_window());

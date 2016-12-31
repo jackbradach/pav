@@ -73,6 +73,7 @@ uint16_t cap_get_analog(cap_t *c, uint64_t idx);
 void cap_set_analog(cap_t *c, uint64_t idx, uint16_t sample);
 uint16_t cap_get_analog_min(cap_t *c);
 uint16_t cap_get_analog_max(cap_t *c);
+float cap_get_analog_voltage(struct cap *c, uint64_t idx);
 void cap_set_analog_cal(cap_t *c, float vmin, float vmax);
 adc_cal_t *cap_get_analog_cal(cap_t *c);
 
