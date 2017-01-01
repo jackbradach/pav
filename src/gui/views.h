@@ -33,6 +33,7 @@ void views_refresh(view_t *v);
 unsigned long views_get_begin(view_t *v);
 unsigned long views_get_end(view_t *v);
 unsigned long views_get_width(view_t *v);
+unsigned views_get_count(views_t *vl);
 
 int64_t views_get_target(view_t *v);
 void views_set_target(view_t *v, int64_t n);

@@ -210,7 +210,8 @@ void gui_get_size(int *w, int *h)
 
 static int init_sdl_window(SDL_Window **window)
 {
-    uint32_t flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
+    uint32_t flags = SDL_WINDOW_OPENGL |
+                     SDL_WINDOW_RESIZABLE;
     SDL_Window *w;
 
     w = SDL_CreateWindow("pav",

@@ -133,6 +133,11 @@ unsigned long views_get_width(view_t *v)
     return(v->end - v->begin);
 }
 
+unsigned views_get_count(views_t *vl)
+{
+    return vl->len;
+}
+
 float views_get_zoom(view_t *v)
 {
     return v->zoom;
@@ -171,6 +176,7 @@ void views_populate_from_bundle(cap_bundle_t *b, struct views **vl)
     struct gui *g = gui_get_instance();
     unsigned len = cap_bundle_len(b);
     struct views *views;
+    int i = 0;
     cap_t *c;
 
     views_create_list(&views);
@@ -178,6 +184,12 @@ void views_populate_from_bundle(cap_bundle_t *b, struct views **vl)
     c = cap_bundle_first(b);
     while (NULL != c) {
         struct view *v = view_from_ch(c);
+        // XXX - temporary fuckery for testing
+        v->color.red = i;
+        v->color.green = 1;
+        v->color.blue = 1;
+        i++;
+
         if (v->txt) {
             SDL_DestroyTexture(v->txt);
         }
@@ -186,7 +198,9 @@ void views_populate_from_bundle(cap_bundle_t *b, struct views **vl)
                     SDL_TEXTUREACCESS_STREAMING,
                     GUI_WIDTH, GUI_HEIGHT / len);
         TAILQ_INSERT_TAIL(&views->head, v, entry);
+        views->len++;
         c = cap_next(c);
+
     }
 
     *vl = views;
@@ -205,10 +219,7 @@ struct view *view_from_ch(cap_t *c)
     v->flags |= VIEW_PLOT_DIRTY; // XXX - probably drop this
     v->flags |= VIEW_VBO_DIRTY;
 
-    // XXX - temporary fuckery for testing
-    v->color.red = .6;
-    v->color.green = .98;
-    v->color.blue = .565;
+
 
     return v;
 }

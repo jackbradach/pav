@@ -21,16 +21,14 @@ void display_gl_refresh(void)
     struct gui *g = gui_get_instance();
     view_t *v;
     int w, h;
+    int idx = 0;
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     gui_get_size(&w, &h);
     printf("wxh = %dx%d\n", w,h);
 
     // Pixels on the screen to be used for rendering
-    glViewport(128, 0, w-128, h);
 
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
     // Ortho-look for view
 
 
@@ -38,8 +36,16 @@ void display_gl_refresh(void)
     while (NULL != v) {
         cap_t *c = views_get_cap(v);
         size_t vlen;
+        int h1, h0;
 
         views_refresh(v);
+        h0 = idx * h/views_get_count(g->views);
+        h1 = h0 + h/views_get_count(g->views);
+        printf("height: h1-h0 = %d-%d = %d\n", h1, h0, h1-h0);
+
+        glViewport(128, h0, w-128, h1-h0);
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
 
         vlen = views_get_width(v);
         printf("Drawing view, len: %'lu\n", vlen);
@@ -49,11 +55,15 @@ void display_gl_refresh(void)
         draw_view(v);
 
         v = views_next(v);
+        idx++;
     }
     SDL_GL_SwapWindow(gui_get_window());
     printf("Scene!\n");
 }
 
+
+
+/* Draws a single view in the parent viewport. */
 static void draw_view(view_t *v)
 {
     glPushMatrix();
@@ -72,5 +82,4 @@ static void draw_view(view_t *v)
     glDisableVertexAttribArray(0);
     glUseProgram(0);
     glPopMatrix();
-
 }
