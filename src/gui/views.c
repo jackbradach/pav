@@ -293,8 +293,8 @@ void views_refresh(struct view *v)
         }
         glGenBuffers(1, &v->vbo_idx);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, v->vbo_idx);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, len_idx * sizeof(unsigned), idx, GL_STATIC_DRAW);
-
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, len_idx, idx, GL_DYNAMIC_DRAW);
+        free(idx);
         v->flags &= ~VIEW_VBO_DIRTY;
     }
 }
