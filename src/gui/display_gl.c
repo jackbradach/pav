@@ -25,8 +25,6 @@ void display_gl_refresh(void)
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     gui_get_size(&w, &h);
-    printf("wxh = %dx%d\n", w,h);
-
     // Pixels on the screen to be used for rendering
 
     // Ortho-look for view
@@ -41,14 +39,12 @@ void display_gl_refresh(void)
         views_refresh(v);
         h0 = idx * h/views_get_count(g->views);
         h1 = h0 + h/views_get_count(g->views);
-        printf("height: h1-h0 = %d-%d = %d\n", h1, h0, h1-h0);
 
         glViewport(128, h0, w-128, h1-h0);
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
 
         vlen = views_get_width(v);
-        printf("Drawing view, len: %'lu\n", vlen);
 
         glOrtho(0, 1.0, cap_get_analog_vmin(c), cap_get_analog_vmax(c), -1, 1);
         glMatrixMode(GL_MODELVIEW);
@@ -58,7 +54,6 @@ void display_gl_refresh(void)
         idx++;
     }
     SDL_GL_SwapWindow(gui_get_window());
-    printf("Scene!\n");
 }
 
 

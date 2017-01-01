@@ -230,8 +230,6 @@ void views_to_vertices(view_t *v, float **vertices)
     float *points;
     int idx, i;
 
-    printf("vmin/max = %.02f/%.02f\n", cap_get_analog_vmin(v->cap),
-        cap_get_analog_vmax(v->cap));
     points = calloc(2 * views_get_width(v), sizeof(float));
     for (i = 0, idx = v->begin; idx < v->end; idx++, i++) {
         points[(2 * i)] = (float) i / (float) views_get_width(v);

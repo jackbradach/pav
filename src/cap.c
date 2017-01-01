@@ -134,6 +134,7 @@ void cap_clone_to_bundle(struct cap_bundle *bun, struct cap *src, unsigned nloop
     dst->analog_max = src->analog_max;
     dst->analog_cal = src->analog_cal;
 
+
     for (unsigned i = 0; i < dst_len; i++) {
         dst->analog[i] = src->analog[(i + skew) % src_len];
     }
