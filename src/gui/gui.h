@@ -57,8 +57,11 @@ void gui_quit(void);
 bool gui_active(void);
 void gui_draw(void);
 void gui_get_size(int *w, int *h);
-
+views_t *gui_get_views(void);
+view_t *get_active_view(void);
+SDL_Texture *gui_get_texture(void);
 SDL_GLContext *gui_get_glctx(void);
 SDL_Window *gui_get_window(void);
+SDL_Renderer *gui_get_renderer(void);
 
 #endif

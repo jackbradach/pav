@@ -46,7 +46,7 @@ unsigned GUI_WIDTH = 1024;
 unsigned GUI_HEIGHT = 768;
 
 static int init_sdl_window(SDL_Window **window);
-static void gui_bundle_from_fp(FILE *fp, cap_bundle_t **bun);
+static void gui_views_from_fp(FILE *fp);
 static int init_sdl(void);
 
 /* The GUI structure is a singleton; doesn't make much sense to
@@ -76,7 +76,6 @@ bool gui_active(void)
 void gui_start(struct pav_opts *opts)
 {
     struct gui *gui = gui_get_instance();
-    cap_bundle_t *bun = NULL;
     int rc;
 
     gui->opts = opts;
@@ -87,15 +86,8 @@ void gui_start(struct pav_opts *opts)
         return;
     }
 
-    gui_bundle_from_fp(opts->fin, &bun);
-    gui->bundle = cap_bundle_create();
-    for (int i = 0; i < opts->duplicate + 1; i++) {
-        cap_t *c = cap_bundle_first(bun);
-        cap_clone_to_bundle(gui->bundle, c, opts->nloops, i * opts->skew_us);
-    }
-    cap_bundle_dropref(bun);
+    gui_views_from_fp(opts->fin);
 
-    views_populate_from_bundle(gui->bundle, &gui->views);
     gui->active_view = views_first(gui->views);
 
     gui->quit = false;
@@ -110,6 +102,9 @@ void gui_start(struct pav_opts *opts)
         gui->shader = p;
     }
 
+
+    control_create();
+
     /* Blocking */
     gui_event_loop();
 }
@@ -117,14 +112,26 @@ void gui_start(struct pav_opts *opts)
 /* Create a capture bundle from a file.  If bun points to
  * an existing bundle, it'll be swapped out and dropreffed.
  */
-static void gui_bundle_from_fp(FILE *fp, cap_bundle_t **bun)
+static void gui_views_from_fp(FILE *fp)
 {
-    cap_bundle_t *b, *old;
-    old = *bun;
-    saleae_import_analog(fp, &b);
-    // TODO - multithread hazard
-    *bun = b;
+    struct gui *g = gui_get_instance();
+    cap_bundle_t *b1, *b2, *old;
+    struct pav_opts *opts = g->opts;
+
+    saleae_import_analog(fp, &b1);
+
+    b2 = cap_bundle_create();
+    for (int i = 0; i < opts->duplicate + 1; i++) {
+        cap_t *c = cap_bundle_first(b1);
+        cap_clone_to_bundle(b2, c, opts->nloops, i * opts->skew_us);
+    }
+    cap_bundle_dropref(b1);
+
+    old = g->bundle;
+    g->bundle = b2;
     cap_bundle_dropref(old);
+
+    views_populate_from_bundle(g->bundle, &g->views);
 }
 
 static int init_sdl(void)
@@ -160,8 +167,8 @@ static int init_sdl(void)
 
     texture = SDL_CreateTexture(renderer,
                 SDL_PIXELFORMAT_ARGB8888,
-                SDL_TEXTUREACCESS_STREAMING,
-                GUI_WIDTH, GUI_HEIGHT);
+                SDL_TEXTUREACCESS_TARGET,
+                GUI_WIDTH / 8, GUI_HEIGHT);
     if (NULL == texture) {
         SDL_Log("SDL_CreateTexture() failed: %s", SDL_GetError());
         return -1;
@@ -223,4 +230,28 @@ static int init_sdl_window(SDL_Window **window)
     }
     *window = w;
     return 0;
+}
+
+SDL_Texture *gui_get_texture(void)
+{
+    struct gui *g = gui_get_instance();
+    return g->texture;
+}
+
+SDL_Renderer *gui_get_renderer(void)
+{
+    struct gui *g = gui_get_instance();
+    return g->renderer;
+}
+
+views_t *gui_get_views(void)
+{
+    struct gui *g = gui_get_instance();
+    return g->views;
+}
+
+view_t *get_active_view(void)
+{
+    struct gui *g = gui_get_instance();
+    return g->active_view;
 }
