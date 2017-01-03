@@ -59,19 +59,30 @@ static void draw_view(view_t *v)
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 
+    uint64_t nsamples = cap_get_nsamples(c);
+    uint64_t vwidth = views_get_width(v);
+    double left, right;
+    uint64_t begin = views_get_begin(v);
+    uint64_t end = views_get_end(v);
     vmin = cap_get_analog_vmin(c);
     vmax = cap_get_analog_vmax(c);
     vrange = vmax - vmin;
 
+    left = (float) begin/(float)nsamples;
+    right = (float)end/(float)nsamples;
+    printf("begin: %'lu end: %'lu\n", begin, end);
+    printf("left: %f right: %f\n", left, right);
     // XXX - 10% slop space so it's easier to view.  Make this a variable
     // elsewhere?
-    glOrtho(0, 1.0, vmin - vrange/10.0, vmax + vrange/10.0, -1, 1);
+//    glOrtho(0, 1.0, vmin - vrange/10.0, vmax + vrange/10.0, -1, 1);
+    glOrtho(left, right, vmin - vrange/10.0, vmax + vrange/10.0, -1, 1);
+
     glMatrixMode(GL_MODELVIEW);
 
     glPushMatrix();
     glLoadIdentity();
     //glTranslatef(5, -1, 0);
-
+    //glScalef(cap_get_nsamples(c)/views_get_width(v) /, 1,1);
     glLineWidth(views_get_line_width(v));
     glColor3f(views_get_red(v), views_get_green(v), views_get_blue(v));
     // glUseProgram(v->shader)
