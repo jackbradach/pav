@@ -54,12 +54,18 @@ static void draw_views(views_t *vl)
 static void draw_view(view_t *v)
 {
     cap_t *c = views_get_cap(v);
+    float vmin, vmax, vrange;
 
-//    set_glviewport_for_view(g->views, idx);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 
-    glOrtho(0, 1.0, cap_get_analog_vmin(c), cap_get_analog_vmax(c), -1, 1);
+    vmin = cap_get_analog_vmin(c);
+    vmax = cap_get_analog_vmax(c);
+    vrange = vmax - vmin;
+
+    // XXX - 10% slop space so it's easier to view.  Make this a variable
+    // elsewhere?
+    glOrtho(0, 1.0, vmin - vrange/10.0, vmax + vrange/10.0, -1, 1);
     glMatrixMode(GL_MODELVIEW);
 
     glPushMatrix();

@@ -41,6 +41,9 @@ struct views {
     unsigned len;
 };
 
+static void views_update_vbo_range(view_t *v);
+static void views_update_vbo_from_cap(view_t *v);
+
 void views_add_ch(struct views *vl, cap_t *c);
 struct view *view_from_ch(cap_t *c);
 
@@ -216,14 +219,48 @@ struct view *view_from_ch(cap_t *c)
     v->begin = 0;
     v->end = cap_get_nsamples(c);
     v->zoom = 1;
-    v->flags |= VIEW_PLOT_DIRTY; // XXX - probably drop this
-    v->flags |= VIEW_VBO_DIRTY;
-
-
+    v->flags |= VIEW_VBO_DIRTY; // XXX - probably drop this
+    v->flags |= VIEW_DIRTY;
 
     return v;
 }
 
+static void views_update_vbo_range(view_t *v)
+{
+    GLsizeiptr len_idx = views_get_width(v) * sizeof(unsigned);
+    unsigned *idx = calloc(views_get_width(v), sizeof(unsigned));
+
+    /* Regenerate the indices to match the view range */
+    for (unsigned i = v->begin, j = 0; i < v->end; i++, j++) {
+        idx[j] = i;
+    }
+
+    glGenBuffers(1, &v->vbo_idx);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, v->vbo_idx);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, len_idx, idx, GL_DYNAMIC_DRAW);
+    free(idx);
+
+    v->flags &= ~VIEW_DIRTY;
+}
+
+static void views_update_vbo_from_cap(view_t *v)
+{
+    GLsizeiptr len_vertices = 2 * cap_get_nsamples(v->cap) * sizeof(float);
+    float *points;
+
+    views_to_vertices(v, &points);
+
+    /* Bind vertices to a VBO; existing buffers look to get
+     * auto-cleaned when a different binding is set.
+     */
+    glGenBuffers(1, &v->vbo_vertices);
+    glBindBuffer(GL_ARRAY_BUFFER, v->vbo_vertices);
+    glBufferData(GL_ARRAY_BUFFER, len_vertices, points, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    free(points);
+
+    v->flags &= ~VIEW_VBO_DIRTY;
+}
 
 void views_to_vertices(view_t *v, float **vertices)
 {
@@ -254,46 +291,14 @@ void views_destroy(struct views *vl)
 
 void views_refresh(struct view *v)
 {
-    /* Refresh the plot if needed (eg, zoom / pan) */
-    if (v->flags & VIEW_PLOT_DIRTY) {
-        plot_from_view(v, &v->pl);
-        v->flags &= ~VIEW_PLOT_DIRTY;
-        v->flags |= VIEW_VBO_DIRTY;
-    }
-
-    /* Refesh the texture if dirty (eg, the size changed) */
-    if (v->flags & VIEW_TEXTURE_DIRTY) {
-        plot_to_texture(v->pl, v->txt);
-        v->flags &= ~VIEW_TEXTURE_DIRTY;
+    /* New capture; a VBO needs to be created from it. */
+    if(v->flags & VIEW_VBO_DIRTY) {
+        views_update_vbo_from_cap(v);
     }
 
     /* Refresh the VBO */
-    if (v->flags & VIEW_VBO_DIRTY) {
-        GLsizeiptr len_vertices = 2 * cap_get_nsamples(v->cap) * sizeof(float);
-        GLsizeiptr len_idx = views_get_width(v) * sizeof(unsigned);
-        unsigned *idx = calloc(views_get_width(v), sizeof(unsigned));
-        float *points;
-
-        views_to_vertices(v, &points);
-
-        /* Bind vertices to a VBO; existing buffers look to get
-         * auto-cleaned when a different binding is set.
-         */
-        // FIXME: this only needs to happen when the cap is loaded!
-        glGenBuffers(1, &v->vbo_vertices);
-        glBindBuffer(GL_ARRAY_BUFFER, v->vbo_vertices);
-        glBufferData(GL_ARRAY_BUFFER, len_vertices, points, GL_STATIC_DRAW);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-        /* Regenerate the indices to match the view range */
-        for (unsigned i = v->begin, j = 0; i < v->end; i++, j++) {
-            idx[j] = i;
-        }
-        glGenBuffers(1, &v->vbo_idx);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, v->vbo_idx);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, len_idx, idx, GL_DYNAMIC_DRAW);
-        free(idx);
-        v->flags &= ~VIEW_VBO_DIRTY;
+    if (v->flags & VIEW_DIRTY) {
+        views_update_vbo_range(v);
     }
 }
 
@@ -345,6 +350,7 @@ static void views_zoom(struct view *v, float level)
     v->end = z1;
     v->zoom = level;
     v->flags |= VIEW_PLOT_DIRTY;
+    v->flags |= VIEW_DIRTY;
 }
 
 void views_pan_left(struct view *v)
@@ -377,6 +383,7 @@ void views_pan_left(struct view *v)
     }
 
     v->flags |= VIEW_PLOT_DIRTY;
+    v->flags |= VIEW_DIRTY;
 }
 
 void views_pan_right(struct view *v)
@@ -409,6 +416,7 @@ void views_pan_right(struct view *v)
     }
 
     v->flags |= VIEW_PLOT_DIRTY;
+    v->flags |= VIEW_DIRTY;
 }
 
 

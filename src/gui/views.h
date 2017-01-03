@@ -13,7 +13,8 @@ enum view_flags {
     VIEW_CLEAN = 0x0,
     VIEW_PLOT_DIRTY = 0x1,
     VIEW_TEXTURE_DIRTY = 0x2,
-    VIEW_VBO_DIRTY = 0x4
+    VIEW_VBO_DIRTY = 0x4,
+    VIEW_DIRTY = 0x8
 };
 
 typedef struct view view_t;
