@@ -1,3 +1,6 @@
+# XXX - eventually move this to the resource library (it's so it
+# XXX - pick up generated files)
+include_directories(${CMAKE_BINARY_DIR})
 
 set(GUI_SRC
     audio.c

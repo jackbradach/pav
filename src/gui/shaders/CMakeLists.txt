@@ -3,7 +3,6 @@ set(OBJCOPY_FMT elf64-x86-64)
 set(OBJCOPY_BINARCH i386)
 set(OBJCOPY_PREFIX res_shader)
 
-find_package(ImageMagick REQUIRED)
 
 # the unit tests can link against them.
 set(SRC_SHADERS

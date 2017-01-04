@@ -66,6 +66,7 @@ void do_usart_decode(struct pav_opts *opts)
 
 void do_plot_capture_to_png(struct pav_opts *opts)
 {
+#if 0
     cairo_surface_t *cs;
     cap_bundle_t *bun;
     view_t *v;
@@ -89,6 +90,7 @@ void do_plot_capture_to_png(struct pav_opts *opts)
     // TODO - 2016/12/28 - make this write to opts->fout
     cairo_surface_write_to_png(cs, "test.png");
     cairo_surface_destroy(cs);
+#endif
 }
 
 

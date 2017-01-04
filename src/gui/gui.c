@@ -102,7 +102,7 @@ void gui_start(struct pav_opts *opts)
         gui->shader = p;
     }
 
-
+    control_init();
     control_create();
 
     /* Blocking */

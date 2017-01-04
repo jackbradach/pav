@@ -3,8 +3,6 @@ set(OBJCOPY_FMT elf64-x86-64)
 set(OBJCOPY_BINARCH i386)
 set(OBJCOPY_PREFIX res_shader)
 
-
-
 set(SRC_AUDIO
     sfx_click.ogg
 )
@@ -55,5 +53,4 @@ endforeach()
 
 add_library(res_audio OBJECT ${RES_AUDIO_GEN})
 
-message("RES_AUDIO_GEN: ${RES_AUDIO_GEN}")
-add_custom_target(res ALL DEPENDS res_audio)
+#add_custom_target(res ALL DEPENDS res_audio)

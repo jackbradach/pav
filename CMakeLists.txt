@@ -21,18 +21,19 @@ assert_out_of_source_build(${CMAKE_PROJECT_NAME})
 
 set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Valid options are Debug (default) and Coverage.")
 
-set(DEFAULT_C_FLAGS "-fopenmp -fdiagnostics-color -Wall")
+set(DEFAULT_C_FLAGS "-fopenmp -fdiagnostics-color -Wall -std=gnu11")
+set(DEFAULT_CXX_FLAGS "-fopenmp -fdiagnostics-color -Wall")
 
 if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
     # The CodeCoverage library takes care of adding the needed GCC options
     set(CMAKE_C_FLAGS "${DEFAULT_C_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set (CMAKE_C_FLAGS "${DEFAULT_C_FLAGS} -g -O3")
-    set (CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${DEFAULT_CMAKE_CXX_FLAGS} -g -O3")
 else()
     set (CMAKE_C_FLAGS "${DEFAULT_C_FLAGS} -O3")
-    set (CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${DEFAULT_C_FLAGS} -O3")
 endif()
 
 include_directories(
@@ -47,9 +48,9 @@ find_package(Cairo REQUIRED)
 include_directories(${CAIRO_INCLUDE_DIRS})
 list(APPEND LIBS ${CAIRO_LIBRARIES})
 
-find_package(PLplot REQUIRED)
-include_directories(${PLplot_INCLUDE_DIR})
-list(APPEND LIBS ${PLplot_LIBRARY})
+#find_package(PLplot REQUIRED)
+#include_directories(${PLplot_INCLUDE_DIR})
+#list(APPEND LIBS ${PLplot_LIBRARY})
 
 find_package(ZLIB REQUIRED)
 include_directories(${ZLIB_INCLUDE_DIRS})
@@ -62,6 +63,10 @@ list(APPEND LIBS ${SDL2_LIBRARY})
 find_package(SDL2_mixer REQUIRED)
 include_directories(${SDLMIXER_INCLUDE_DIR})
 list(APPEND LIBS ${SDLMIXER_LIBRARY})
+
+find_package(SDL2_ttf REQUIRED)
+include_directories(${SDL2_TTF_INCLUDE_DIR})
+list(APPEND LIBS ${SDL2_TTF_LIBRARY})
 
 find_package(OpenGL REQUIRED)
 include_directories(${OPENGL_INCLUDE_DIRS})
@@ -84,13 +89,17 @@ add_subdirectory(src)
 add_subdirectory(src/gui)
 add_subdirectory(src/gui/shaders)
 add_subdirectory(src/gui/audio)
+add_subdirectory(src/gui/fonts)
+
+message("bindir: ${CMAKE_CURRENT_BINARY_DIR}")
 
 # Build the main executable
 add_executable(${BINARY_NAME}
     $<TARGET_OBJECTS:main>
     $<TARGET_OBJECTS:src>
     $<TARGET_OBJECTS:gui>
-    $<TARGET_OBJECTS:res_audio>)
+    $<TARGET_OBJECTS:res_audio>
+    $<TARGET_OBJECTS:res_fonts>)
 target_link_libraries(${BINARY_NAME} ${LIBS} shaders)
 
 # Build the unit tests if Debug or Coverage
@@ -107,6 +116,7 @@ if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
         $<TARGET_OBJECTS:tests>
         $<TARGET_OBJECTS:src>
         $<TARGET_OBJECTS:gui>
+        $<TARGET_OBJECTS:res_fonts>
     )
     target_link_libraries(${BINARY_NAME}_tests ${LIBS})
 endif()

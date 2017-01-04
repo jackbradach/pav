@@ -30,6 +30,7 @@ void display_gl_refresh(void)
     // 3) Draw views
     // 3a) Refresh views
 //    control_refresh();
+    control_create();
     // Pixels on the screen to be used for rendering
     draw_views(g->views);
     SDL_GL_SwapWindow(gui_get_window());
@@ -68,10 +69,11 @@ static void draw_view(view_t *v)
     vmax = cap_get_analog_vmax(c);
     vrange = vmax - vmin;
 
-    left = (float) begin/(float)nsamples;
-    right = (float)end/(float)nsamples;
-    printf("begin: %'lu end: %'lu\n", begin, end);
-    printf("left: %f right: %f\n", left, right);
+    left = (double) begin / (double) nsamples;
+    right = (double) end / (double) nsamples;
+//    printf("View range:\n");
+//    printf("\tbegin: %'lu end: %'lu\n", begin, end);
+//    printf("\tleft: %f right: %f\n", left, right);
     // XXX - 10% slop space so it's easier to view.  Make this a variable
     // elsewhere?
 //    glOrtho(0, 1.0, vmin - vrange/10.0, vmax + vrange/10.0, -1, 1);

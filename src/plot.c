@@ -29,9 +29,10 @@
 
 #include <SDL2/SDL.h>
 
-// PLPLOT
-#include "plplot/plplot.h"
-#include "cairo/cairo.h"
+#if 0
+//#include "plplot/plplot.h"
+//#include "cairo/cairo.h"
+#endif
 
 #include "plot.h"
 #include "views.h"
@@ -110,6 +111,7 @@ void plot_from_view(view_t *v, struct plot **plot)
     *plot = pl;
 }
 
+#if 0
 
 void plot_to_texture(struct plot *pl, SDL_Texture *txt)
 {
@@ -170,6 +172,7 @@ void plot_to_cairo_surface(struct plot *pl, cairo_surface_t *cs)
     cairo_surface_flush(cs);
     cairo_destroy(c);
 }
+#endif
 
 static void sprint_plot_view_title(view_t *view, char *s)
 {
