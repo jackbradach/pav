@@ -1,10 +1,10 @@
 node {
-    stage 'Checkout' {
+    stage 'checkout' {
         checkout scm
     }
 
-    stage 'Build'
+    stage 'build'
     def app = docker.build "jbradach/pav:${env.BUILD_NUMBER}"
 
-    
+
 }
