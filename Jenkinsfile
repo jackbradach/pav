@@ -13,7 +13,7 @@ node() {
     img.inside {
         stage("Container Preparation")
         sh """
-        mkdir -f build
+        mkdir -p build
         cd build
         cmake -DCMAKE_BUILD_TYPE=Coverage ..
         make
