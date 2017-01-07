@@ -5,6 +5,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && apt-get install -y \
         freeglut3-dev \
         libglew-dev \
+        libplplot-dev \
         libsdl2-dev \
         libsdl2-mixer-dev \
         libsdl2-ttf-dev \
