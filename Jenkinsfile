@@ -1,20 +1,23 @@
 node() {
+    def img
     stage("Checkout source code") {
         checkout scm
     }
 
     stage("Prepare Container") {
-        def env = docker.build('jbradach/build_pav')
+        img = docker.build('jbradach/build_pav')
     }
 
-    env.inside {
+    img.inside {
         stage("Container Preparation")
-        sh """"
-        ls -l
+        sh """
+        mkdir build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Coverage ..
+        make coverage
         """
 
     }
-
 
     stage("Cleanup") {
         deleteDir()

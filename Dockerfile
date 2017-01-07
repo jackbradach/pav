@@ -1,4 +1,4 @@
-FROM gcc:latest
+FROM jbradach/toolchain_latest
 MAINTAINER Jack Bradach <jack@bradach.net>
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
@@ -11,5 +11,3 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
         zlib1g-dev \
         cmake \
         git
-
-#ENTRYPOINT ["setup-sshd"]
