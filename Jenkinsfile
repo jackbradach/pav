@@ -3,7 +3,7 @@
 node() {
     def img
     stage("Checkout source code") {
-//        checkout scm
+        checkout scm
     }
 
     stage("Prepare Container") {
