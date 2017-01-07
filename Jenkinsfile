@@ -16,6 +16,7 @@ node() {
         mkdir -f build
         cd build
         cmake -DCMAKE_BUILD_TYPE=Coverage ..
+        make
         make coverage
         """
     }
