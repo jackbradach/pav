@@ -1,4 +1,4 @@
-FROM jbradach/toolchain_latest
+FROM jbradach/toolchains:latest
 MAINTAINER Jack Bradach <jack@bradach.net>
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
