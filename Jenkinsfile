@@ -7,7 +7,7 @@ node() {
     }
 
     stage("Prepare Container") {
-        img = docker.build("build_pav-$BUILD_NUMBER")
+        img = docker.build("jbradach/build_pav", ".")
     }
 
     img.inside {
