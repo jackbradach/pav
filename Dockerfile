@@ -8,6 +8,4 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
         libsdl2-dev \
         libsdl2-mixer-dev \
         libsdl2-ttf-dev \
-        zlib1g-dev \
-        cmake \
-        git
+        zlib1g-dev

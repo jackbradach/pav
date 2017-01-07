@@ -3,22 +3,21 @@
 node() {
     def img
     stage("Checkout source code") {
-        checkout scm
+//        checkout scm
     }
 
     stage("Prepare Container") {
-        img = docker.build('jbradach/build_pav')
+        img = docker.build("build_pav-$BUILD_NUMBER")
     }
 
     img.inside {
         stage("Container Preparation")
         sh """
-        mkdir build
+        mkdir -f build
         cd build
         cmake -DCMAKE_BUILD_TYPE=Coverage ..
         make coverage
         """
-
     }
 
     stage("Cleanup") {
