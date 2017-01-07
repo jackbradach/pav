@@ -1,3 +1,5 @@
+#!/usr/bin/env groovy
+
 node() {
     def img
     stage("Checkout source code") {
