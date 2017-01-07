@@ -75,7 +75,7 @@ TEST(Plot, DISABLED_PlotFromView) {
 
     plot_dropref(p);
 }
-
+#if 0
 TEST(Plot, DISABLED_PlotToCairoSurface) {
     cap_bundle_t *b;
     views_t *vl;
@@ -99,3 +99,4 @@ TEST(Plot, DISABLED_PlotToCairoSurface) {
     cairo_surface_destroy(cs);
     fclose(fp);
 }
+#endif

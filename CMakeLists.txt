@@ -87,6 +87,7 @@ list(APPEND LIBS ${GLUT_LIBRARY})
 
 # Need Math library.
 list(APPEND LIBS m)
+list(APPEND LIBS pthread)
 
 # Add all the sub-builds
 add_subdirectory(src)
