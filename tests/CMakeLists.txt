@@ -21,7 +21,7 @@ foreach(SRC ${TEST_SRCS})
     get_filename_component(NAME ${SRC} NAME_WE)
 endforeach(SRC)
 
-GTEST_ADD_TESTS(${CMAKE_PROJECT_NAME}_tests "" ${TEST_SRCS})
+GTEST_ADD_TESTS(${CMAKE_PROJECT_NAME}_tests "--gtest_output=xml:${CMAKE_BINARY_DIR}/reports/pav_tests.xml" ${TEST_SRCS})
 
 add_library(tests OBJECT ${TEST_SRCS})
 
@@ -41,7 +41,7 @@ add_dependencies(check ${CMAKE_PROJECT_NAME} ${CMAKE_PROJECT_NAME}_tests tests c
 # Create a 'coverage' target and make sure it builds the binaries!
 if(CMAKE_BUILD_TYPE STREQUAL "Coverage")
     setup_target_for_coverage(coverage
-        "${CMAKE_CTEST_COMMAND} --gtest_output=xml:${CMAKE_BINARY_DIR}/reports/pav_tests.xml"
+        "${CMAKE_CTEST_COMMAND}"
         cov
     )
     add_dependencies(coverage check)
