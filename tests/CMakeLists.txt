@@ -41,7 +41,7 @@ add_dependencies(check ${CMAKE_PROJECT_NAME} ${CMAKE_PROJECT_NAME}_tests tests c
 # Create a 'coverage' target and make sure it builds the binaries!
 if(CMAKE_BUILD_TYPE STREQUAL "Coverage")
     setup_target_for_coverage(coverage
-        "${CMAKE_CTEST_COMMAND}"
+        "${CMAKE_CTEST_COMMAND} --gtest_output=xml:${CMAKE_BINARY_DIR}/pav_tests.xml"
         cov
     )
     add_dependencies(coverage check)
