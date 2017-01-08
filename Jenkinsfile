@@ -21,6 +21,15 @@ node() {
         """
     }
 
+    stage("Generating Coverage Report") {
+        publishHTML([allowMissing: true,
+                     alwaysLinkToLastBuild: true,
+                     keepAll: true,
+                     reportDir: 'cov/',
+                     reportFiles: 'index.html',
+                     reportName: 'Coverage (lcov)'])
+    }
+
     stage("Cleanup") {
         deleteDir()
     }
