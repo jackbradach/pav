@@ -16,12 +16,8 @@ add_custom_target(check
     COMMAND ${CMAKE_CTEST_COMMAND} ${CTEST_OPTS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
-foreach(SRC ${TEST_SRCS})
-    get_filename_component(NAME ${SRC} NAME_WE)
-    GTEST_ADD_TESTS(${CMAKE_PROJECT_NAME}_tests "--gtest_output=xml:${CMAKE_BINARY_DIR}/reports/${NAME}.xml" ${SRC})
-endforeach(SRC)
 
-
+GTEST_ADD_TESTS(${CMAKE_PROJECT_NAME}_tests "--gtest_output=xml:${CMAKE_BINARY_DIR}/reports/" ${TEST_SRCS})
 
 add_library(tests OBJECT tests.cpp ${TEST_SRCS})
 
