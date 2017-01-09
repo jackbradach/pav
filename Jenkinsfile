@@ -13,7 +13,7 @@ node() {
         img_coverage = docker.build("jbradach/build_pav", ".")
     }
 
-    parallel(img_release.inside {
+    img_release.inside {
         stage("Building Release") {
             sh """
             mkdir -p Release
@@ -24,7 +24,9 @@ node() {
             """
             archive includes:'**/Release/bin/pav,**/Release/*.deb'
         }
-    }, img_debug.inside {
+    }
+
+    img_debug.inside {
         stage("Generating Test Report") {
             sh """
             mkdir -p Debug
@@ -43,7 +45,9 @@ node() {
                             pattern: '**/Debug/reports/*.xml',
                             stopProcessingIfError: true]]])
         }
-    }, img_coverage.inside {
+    }
+
+    img_coverage.inside {
         stage("Generating Coverage Report") {
             sh """
             mkdir -p Coverage
@@ -61,7 +65,7 @@ node() {
                 reportName: 'Coverage (lcov)'
             ])
         }
-    })
+    }
 
     stage("Cleanup") {
         deleteDir()
