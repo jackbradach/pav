@@ -14,26 +14,24 @@ node() {
     img.inside {
         stage("Building Release") {
             sh """
-            BUILDROOT=`${PWD}`
             mkdir -p Release
             cd Release
             cmake -DCMAKE_BUILD_TYPE=Release ..
             make
             make package
-            cd ${BUILDROOT}
+            cd ..
             """
             archive includes:'**/Release/bin/pav,**/Release/*.deb'
         }
 
         stage("Generating Test Report") {
             sh """
-            BUILDROOT=`${PWD}`
             mkdir -p Debug
             cd Debug
             cmake -DCMAKE_BUILD_TYPE=Debug ..
             make
             make check
-            cd ${BUILDROOT}
+            cd ..
             """
             step([$class: 'XUnitBuilder',
                 testTimeMargin: '3000',
@@ -48,13 +46,12 @@ node() {
 
         stage("Generating Coverage Report") {
             sh """
-            BUILDROOT=`${PWD}`
             mkdir -p Coverage
             cd Coverage
             cmake -DCMAKE_BUILD_TYPE=Coverage ..
             make
             make coverage
-            cd ${BUILDROOT}
+            cd ..
             """
             publishHTML([
                 alwaysLinkToLastBuild: true,
