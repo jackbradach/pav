@@ -7,43 +7,34 @@ node() {
         //git credentialsId: 'jenkinsci-slave', url: ' ssh://git@bitbucket.org/jackbradach/pav.git'
     }
 
-    stage("Prepare Container") {
-        img = docker.build("jbradach/build_pav", ".")
+    stage("Prepare Containers") {
+        img_release = docker.build("jbradach/build_pav", ".")
+        img_debug = docker.build("jbradach/build_pav", ".")
+        img_coverage = docker.build("jbradach/build_pav", ".")
     }
 
-    img.inside {
-        stage("Building Binary and Package") {
+    img_release.inside {
+        stage("Building Release") {
             sh """
-            mkdir -p release
-            cd release
+            mkdir -p Release
+            cd Release
             cmake -DCMAKE_BUILD_TYPE=Release ..
             make
             make package
-            cd ..
             """
-            archive includes:'release/bin/pav,release/*.deb'
+            archive includes:'**/bin/pav,**/*.deb'
         }
+    }
 
-        stage("Generating Coverage Report") {
-            sh """
-            mkdir -p coverage
-            cd coverage
-            cmake -DCMAKE_BUILD_TYPE=Coverage ..
-            make
-            make coverage
-            cd ..
-            """
-            publishHTML([
-                allowMissing: true,
-                alwaysLinkToLastBuild: true,
-                keepAll: true,
-                reportDir: 'coverage/cov/',
-                reportFiles: 'index.html',
-                reportName: 'Coverage (lcov)'
-            ])
-        }
-
+    img_debug.inside {
         stage("Generating Test Report") {
+            sh """
+            mkdir -p Debug
+            cd Debug
+            cmake -DCMAKE_BUILD_TYPE=Debug ..
+            make
+            make check
+            """
             step([$class: 'XUnitBuilder',
                 testTimeMargin: '3000',
                 thresholdMode: 1,
@@ -56,6 +47,25 @@ node() {
         }
     }
 
+    img_coverage.inside {
+        stage("Generating Coverage Report") {
+            sh """
+            mkdir -p Coverage
+            cd Coverage
+            cmake -DCMAKE_BUILD_TYPE=Coverage ..
+            make
+            make Coverage
+            """
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: '**/cov/',
+                reportFiles: 'index.html',
+                reportName: 'Coverage (lcov)'
+            ])
+        }
+    }
 
     stage("Cleanup") {
         deleteDir()
