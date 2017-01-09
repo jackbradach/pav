@@ -13,7 +13,7 @@ node() {
         img_coverage = docker.build("jbradach/build_pav", ".")
     }
 
-    img_release.inside {
+    parallel(img_release.inside {
         stage("Building Release") {
             sh """
             mkdir -p Release
@@ -22,11 +22,9 @@ node() {
             make
             make package
             """
-            archive includes:'**/bin/pav,**/*.deb'
+            archive includes:'**/Release/bin/pav,**/Release/*.deb'
         }
-    }
-
-    img_debug.inside {
+    }, img_debug.inside {
         stage("Generating Test Report") {
             sh """
             mkdir -p Debug
@@ -42,30 +40,28 @@ node() {
                 tools: [[$class: 'GoogleTestType',
                             deleteOutputFiles: true,
                             failIfNotNew: true,
-                            pattern: '**/reports/*.xml',
+                            pattern: '**/Debug/reports/*.xml',
                             stopProcessingIfError: true]]])
         }
-    }
-
-    img_coverage.inside {
+    }, img_coverage.inside {
         stage("Generating Coverage Report") {
             sh """
             mkdir -p Coverage
             cd Coverage
             cmake -DCMAKE_BUILD_TYPE=Coverage ..
             make
-            make Coverage
+            make coverage
             """
             publishHTML([
                 allowMissing: true,
                 alwaysLinkToLastBuild: true,
                 keepAll: true,
-                reportDir: '**/cov/',
+                reportDir: '**/Coverage/cov/',
                 reportFiles: 'index.html',
                 reportName: 'Coverage (lcov)'
             ])
         }
-    }
+    })
 
     stage("Cleanup") {
         deleteDir()
