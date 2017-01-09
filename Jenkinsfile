@@ -8,32 +8,32 @@ node() {
     }
 
     stage("Prepare Containers") {
-        img_release = docker.build("jbradach/build_pav", ".")
-        img_debug = docker.build("jbradach/build_pav", ".")
-        img_coverage = docker.build("jbradach/build_pav", ".")
+        img = docker.build("jbradach/build_pav", ".")
     }
 
-    img_release.inside {
+    img.inside {
         stage("Building Release") {
             sh """
+            BUILDROOT=`${PWD}`
             mkdir -p Release
             cd Release
             cmake -DCMAKE_BUILD_TYPE=Release ..
             make
             make package
+            cd ${BUILDROOT}
             """
             archive includes:'**/Release/bin/pav,**/Release/*.deb'
         }
-    }
 
-    img_debug.inside {
         stage("Generating Test Report") {
             sh """
+            BUILDROOT=`${PWD}`
             mkdir -p Debug
             cd Debug
             cmake -DCMAKE_BUILD_TYPE=Debug ..
             make
             make check
+            cd ${BUILDROOT}
             """
             step([$class: 'XUnitBuilder',
                 testTimeMargin: '3000',
@@ -45,22 +45,21 @@ node() {
                             pattern: '**/Debug/reports/*.xml',
                             stopProcessingIfError: true]]])
         }
-    }
 
-    img_coverage.inside {
         stage("Generating Coverage Report") {
             sh """
+            BUILDROOT=`${PWD}`
             mkdir -p Coverage
             cd Coverage
             cmake -DCMAKE_BUILD_TYPE=Coverage ..
             make
             make coverage
+            cd ${BUILDROOT}
             """
             publishHTML([
-                allowMissing: true,
                 alwaysLinkToLastBuild: true,
                 keepAll: true,
-                reportDir: '**/Coverage/cov/',
+                reportDir: '**/Coverage/cov',
                 reportFiles: 'index.html',
                 reportName: 'Coverage (lcov)'
             ])
