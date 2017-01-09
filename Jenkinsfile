@@ -45,10 +45,15 @@ node() {
 
         stage("Generating Test Report") {
             step([$class: 'XUnitBuilder',
-              thresholds: [[$class: 'FailedThreshold', unstableThreshold: '1']],
-              tools: [[$class: 'JUnitType', pattern: '**/pav_tests.xml']]])
+                testTimeMargin: '3000',
+                thresholdMode: 1,
+                thresholds: [[$class: 'FailedThreshold', unstableThreshold: '1']],
+                tools: [[$class: 'GoogleTestType',
+                            deleteOutputFiles: true,
+                            failIfNotNew: true,
+                            pattern: '**/reports/*.xml',
+                            stopProcessingIfError: true]]])
         }
-
     }
 
 

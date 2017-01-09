@@ -1,7 +1,6 @@
 
 
 set(TEST_SRCS
-    tests.cpp
     test_adc.cpp
     test_audio.cpp
     test_cap.cpp
@@ -19,11 +18,12 @@ add_custom_target(check
 )
 foreach(SRC ${TEST_SRCS})
     get_filename_component(NAME ${SRC} NAME_WE)
+    GTEST_ADD_TESTS(${CMAKE_PROJECT_NAME}_tests "--gtest_output=xml:${CMAKE_BINARY_DIR}/reports/${NAME}.xml" ${SRC})
 endforeach(SRC)
 
-GTEST_ADD_TESTS(${CMAKE_PROJECT_NAME}_tests "--gtest_output=xml:${CMAKE_BINARY_DIR}/reports/pav_tests.xml" ${TEST_SRCS})
 
-add_library(tests OBJECT ${TEST_SRCS})
+
+add_library(tests OBJECT tests.cpp ${TEST_SRCS})
 
 add_custom_target(copy_captures
     COMMAND ${CMAKE_COMMAND} -E copy_directory
