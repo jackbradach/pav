@@ -56,7 +56,7 @@ node() {
             publishHTML([
                 alwaysLinkToLastBuild: true,
                 keepAll: true,
-                reportDir: '**/Coverage/cov',
+                reportDir: 'Coverage/cov',
                 reportFiles: 'index.html',
                 reportName: 'Coverage (lcov)'
             ])
