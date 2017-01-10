@@ -4,6 +4,7 @@ set(TEST_SRCS
     test_adc.cpp
     test_audio.cpp
     test_cap.cpp
+    test_capture.cpp
     test_saleae.cpp
     test_pa_spi.cpp
     test_pa_usart.cpp
