@@ -22,12 +22,18 @@
 #ifndef _PAV_GUI_H_
 #define _PAV_GUI_H_
 
-#include <SDL2/SDL.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // TODO - put these in a file to be included by pav main, like "pav_gui.h"
 #include "pav.h"
 typedef struct gui gui_t;
 
 void pav_gui_start(struct pav_opts *opts);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

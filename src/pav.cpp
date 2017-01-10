@@ -37,7 +37,7 @@
 
 #include "gui/pav_gui.h"
 
-extern void parse_cmdline(int argc, char *argv[], struct pav_opts *opts);
+extern "C" { void parse_cmdline(int argc, char *argv[], struct pav_opts *opts); }
 
 /* Imports an analog capture file, runs it through the decoder, and
  * spits out the results in a table.

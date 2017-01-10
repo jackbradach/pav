@@ -30,6 +30,10 @@
 #include "plot.h"
 #include "views.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern unsigned GUI_WIDTH;
 extern unsigned GUI_HEIGHT;
 
@@ -63,5 +67,9 @@ SDL_Texture *gui_get_texture(void);
 SDL_GLContext *gui_get_glctx(void);
 SDL_Window *gui_get_window(void);
 SDL_Renderer *gui_get_renderer(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

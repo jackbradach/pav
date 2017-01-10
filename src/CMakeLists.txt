@@ -1,6 +1,6 @@
 # Source containing 'main()'
 set(MAIN
-    pav.c
+    pav.cpp
 )
 
 set(SRC
