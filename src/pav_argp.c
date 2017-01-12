@@ -114,7 +114,7 @@ static void set_defaults(struct pav_opts *opts)
         /* Should we pipe out the results? */
         if (!isatty(fileno(stdout))) {
                 opts->fout = stdout;
-                stdout = freopen(NULL, "wb", stdout);
+                freopen(NULL, "wb", stdout);
         }
 }
 
@@ -220,7 +220,7 @@ static bool opts_valid(struct pav_opts *opts)
 
     /* If input is a pipe (eg, stdin), reopen it as binary. */
     if (stdin == opts->fin) {
-        stdin = freopen(NULL, "rb", stdin);
+        freopen(NULL, "rb", stdin);
     }
 
     if (!opts->fout) {
