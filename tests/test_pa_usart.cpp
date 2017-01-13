@@ -45,6 +45,7 @@ TEST(PaUsartTest, UsartBlock) {
     pa_usart_ctx_init(&usart);
     pa_usart_ctx_map_data(usart, 0);
 
+    ASSERT_TRUE(NULL != fp);
     saleae_import_analog(fp, &bun);
     pa_usart_ctx_set_freq(usart, 50.0E6);
 
