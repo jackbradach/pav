@@ -48,6 +48,7 @@ TEST(PaUsartTest, UsartBlock) {
     ASSERT_TRUE(NULL != fp);
     saleae_import_analog(fp, &bun);
     pa_usart_ctx_set_freq(usart, 50.0E6);
+    pa_usart_reset(usart);
 
     cap = cap_bundle_first(bun);
     pa_usart_decode_chunk(usart, cap);
@@ -58,6 +59,5 @@ TEST(PaUsartTest, UsartBlock) {
 
     free(usart_recv);
     pa_usart_ctx_cleanup(usart);
-    pa_usart_reset(usart);
     fclose(fp);
 }
