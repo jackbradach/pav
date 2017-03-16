@@ -1,6 +1,6 @@
 # Source containing 'main()'
 set(MAIN
-    pav.cpp
+    pav.c
 )
 
 set(SRC
@@ -14,10 +14,6 @@ set(SRC
     saleae.c
 )
 
-set(SRC_CPP
-    capture.cpp
-)
-
 if(${WIN32})
 list(APPEND SRC file_utils_win32.c)
 else()
@@ -25,4 +21,4 @@ list(APPEND SRC file_utils_linux.c)
 endif()
 
 add_library(main OBJECT ${MAIN})
-add_library(src OBJECT ${SRC} ${SRC_CPP})
+add_library(src OBJECT ${SRC})
