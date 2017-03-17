@@ -1,7 +1,6 @@
-uniform sampler2D txt;
-varying vec2 txt_xy;
+varying vec4 color;
 
 void main(void)
 {
-   gl_FragColor = texture2D(txt, txt_xy).bgra;
+   gl_FragColor = color;
 }

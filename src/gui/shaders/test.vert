@@ -1,8 +1,10 @@
 #version 130
-varying vec2 txt_xy;
+
+in vec2 position;
+out vec4 color;
 
 void main()
 {
-    txt_xy = gl_MultiTexCoord0.xy;
-    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+    color = gl_Position;
+    gl_Position = vec4(position, 0.0, 1.0);
 }

@@ -98,7 +98,7 @@ void gui_start(struct pav_opts *opts)
         GLint p;
         glewInit();
         p = shader_compile_program("test.vert", "test.frag");
-        printf("p = %d\n", p);
+        printf("gl_program = %d\n", p);
         gui->shader = p;
     }
 

@@ -87,7 +87,7 @@ static void draw_view(view_t *v)
     //glScalef(cap_get_nsamples(c)/views_get_width(v) /, 1,1);
     glLineWidth(views_get_line_width(v));
     glColor3f(views_get_red(v), views_get_green(v), views_get_blue(v));
-    // glUseProgram(v->shader)
+    glUseProgram(gui_get_instance()->shader);
     glBindBuffer(GL_ARRAY_BUFFER, views_get_vbo_vertices(v));
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
