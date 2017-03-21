@@ -1,7 +1,49 @@
-Protocol Analyzer Viewer
+Protocol Analyzer / Visualizer
 ------------------------
 Imports analog capture files (such as those from a Saleae Logic Pro 16) and
 processes them according to the 'mode' flag.
+
+What is this?
+---
+"PA/V" is a terribly named freeform recreational project that has somewhat
+congealed into a protocol analyzer.
+
+Current Status:
+- Imports multi-channel analog data (currently the Saleae format is
+the only one supported; I'll add audio formats eventually), optionally
+compressed.
+
+- Extracts and decodes digital data (currently supports SPI and Asynchronous
+Serial).
+
+- Exports captured bytes (to stdout) along with capture stats.
+
+- draws a very rudimentary GUI with multiple channels atop each-other.
+
+- Kind of does draws everything using OpenGL and shaders!  I used to have
+plplot and cairo in a dysfunctional relationship to go from the analog
+data to drawing it on the screen.  I replaced it with an OpenGL-based
+one, that currently is only slightly fancier than dumping the waveform
+data into a VBO and playing with drawing ranges for zooming.
+
+- Sound!  I'm using SDL for input handling, it's not much more work to
+make it beep.  Currently has one sound and it's not very good.
+
+- Font!  SDL again; currently has one font and it's awesome.
+
+Roadmap:
+- Actual shaders.  It loads and applies a single vertex/fragment pair
+but that pair doesn't do much of interest.  I have this idea that it
+could look cool if I rendered the trace as if it was an old CRT.  I
+might also use the error estimation for a given sample to determine
+how "fat" the trace is; a high precision trace would be nice and
+sharp.  Also all of this will be animated.
+
+- Resource / Asset loader.  That might be the wrong word; I'm going
+to link in a whole bunch of random nonsense at build time, including
+shader sources, example captures, fonts, and sounds using objcopy.
+The asset loader will pull in a generated list of symbols and instantiate
+objects from them.  It'll also need to have some lookup mechanism.
 
 Running modes:
 --decode: treats the capture as a USART (115200 8-N-1 for now) and runs the
